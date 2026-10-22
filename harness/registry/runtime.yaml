@@ -1,5 +1,5 @@
 image: ghcr.io/majorminorlabs/vtm-llamacpp:84e66d0
-image_digest: pending-github-actions-publish
+image_digest: sha256:432a22a393d71275c62b0aa3a1e3261e0b8b464830807e11b3df2bba114c5a90
 image_platform: linux/amd64
 llama_cpp_repository: https://github.com/ggml-org/llama.cpp.git
 llama_cpp_commit: 84e66d03218711dfcaa993e5f64a546abe82df9a

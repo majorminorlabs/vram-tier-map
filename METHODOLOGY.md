@@ -16,6 +16,7 @@ commit by GitHub Actions. Its CUDA build sets
 `llama-bench`, `llama-server`, `llama-cli`, and `llama-tokenize`. The published
 image is pulled by immutable digest. The digest is recorded in
 `harness/registry/runtime.yaml` and each run's `run.json`.
+Published image: `ghcr.io/majorminorlabs/vtm-llamacpp@sha256:432a22a393d71275c62b0aa3a1e3261e0b8b464830807e11b3df2bba114c5a90`.
 
 The CUDA `libcuda.so` stub is used only in the build stage to link the CUDA
 binaries. Its build-stage `libcuda.so.1` symlink and linker search flags are not
