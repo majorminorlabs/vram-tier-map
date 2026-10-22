@@ -73,8 +73,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 create_log="$private/create-responses/${run_id}.json"
 create_rc=0
-created=$(vastai create instance "$offer_id" --image "$image" --disk 120 --label "$label" --onstart "$scripts/onstart.sh" --ssh --direct --cancel-unavail --raw 2>/dev/null) || create_rc=$?
-printf '%s' "$created" | python3 "$scripts/redact_create_response.py" > "$create_log"
+created=$(python3 "$scripts/vast_create.py" "$run_id" "$label" "$offer_id" "$image" 120 "$scripts/onstart.sh" "$private/create-responses") || create_rc=$?
 returned_id=$(python3 - "$created" <<'PY'
 import json,sys,re
 try:
