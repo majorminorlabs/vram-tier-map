@@ -1,0 +1,2 @@
+# Add one entry for each physical GPU tier. Tier is metadata, not a directory.
+cards: []

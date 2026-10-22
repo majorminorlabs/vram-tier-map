@@ -1,0 +1,1 @@
+card_id,run_id,model_id,quant,task_pass,prompt_tps,generation_tps,ttft_ms,vram_peak_gb,cost_usd,flags
