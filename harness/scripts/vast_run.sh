@@ -48,7 +48,12 @@ if float(sys.argv[1])*6>20: raise SystemExit('projected six-hour spend exceeds 8
 PY
 image=$(python3 - harness/registry/runtime.yaml <<'PY'
 import sys,yaml
-print(yaml.safe_load(open(sys.argv[1]))['image'])
+cfg=yaml.safe_load(open(sys.argv[1]))
+name=cfg['image'].split(':',1)[0]
+digest=cfg['image_digest']
+if not isinstance(digest,str) or not digest.startswith('sha256:') or len(digest)!=71:
+ raise SystemExit('runtime image digest is not published and pinned')
+print(name+'@'+digest)
 PY
 )
 "$scripts/watchdog.sh" "$label" "$$" "$deadline" "$state" >/dev/null 2>&1 & wd=$!
@@ -73,6 +78,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 create_log="$private/create-responses/${run_id}.json"
 create_rc=0
+startup_deadline=$(( $(date +%s) + 900 ))
 created=$(python3 "$scripts/vast_create.py" "$run_id" "$label" "$offer_id" "$image" 120 "$scripts/onstart.sh" "$private/create-responses") || create_rc=$?
 returned_id=$(python3 - "$created" <<'PY'
 import json,sys,re
@@ -117,14 +123,17 @@ printf '%s\n' "$id" > "$out/instance-id.txt"
 printf '%s\n' "$label" > "$out/label.txt"
 printf 'run_id=%s\ninstance_id=%s\nlabel=%s\nmachine_id=%s\nhourly_usd=%s\ncreate_exit=%s\n' "$run_id" "$id" "$label" "$host" "$hourly" "$create_rc" > "$private/${run_id}-instance.txt"
 echo "created/adopted run=$run_id instance=$id gpu=$offer_gpu hourly=$hourly"
-for _ in $(seq 1 90); do
+status=''
+while (( $(date +%s) < startup_deadline )); do
   status=$(vastai show instance "$id" --raw 2>/dev/null | python3 -c 'import json,sys; r=json.load(sys.stdin); r=r[0] if isinstance(r,list) else r; print(r.get("actual_status",r.get("status","")))' 2>/dev/null || true)
   [[ "$status" == running ]] && break
   sleep 10
 done
 [[ "${status:-}" == running ]] || { echo 'instance startup timed out' >&2; exit 1; }
-endpoint=$(vastai ssh-url "$id" 2>/dev/null) || { echo 'SSH endpoint lookup failed' >&2; exit 1; }
-read -r ssh_host ssh_port < <(python3 - "$endpoint" <<'PY'
+ssh_host=''; ssh_port=''
+while (( $(date +%s) < startup_deadline )); do
+  endpoint=$(vastai ssh-url "$id" 2>/dev/null || true)
+  read -r ssh_host ssh_port < <(python3 - "$endpoint" <<'PY'
 import re,sys
 m=re.search(r'(?:ssh://)?(?:\w+@)?([^\s:/]+):(\d+)',sys.argv[1])
 if m: print(m.group(1),m.group(2))
@@ -133,14 +142,18 @@ else:
  if not m: raise SystemExit(1)
  print(m.group(2),m.group(1))
 PY
-)
+  )
+  [[ -n "$ssh_host" && -n "$ssh_port" ]] && break
+  sleep 10
+done
+[[ -n "$ssh_host" && -n "$ssh_port" ]] || { echo 'SSH endpoint startup timed out' >&2; exit 1; }
 ssh=(ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -p "$ssh_port" "root@$ssh_host")
 ready=0
-for _ in $(seq 1 90); do
+while (( $(date +%s) < startup_deadline )); do
   if "${ssh[@]}" 'test -x /workspace/bin/llama-bench' >/dev/null 2>&1; then ready=1; break; fi
   sleep 10
 done
-(( ready )) || { echo 'llama.cpp build startup timed out' >&2; exit 1; }
+(( ready )) || { echo 'pinned llama.cpp image startup timed out' >&2; exit 1; }
 vastai copy "local:$scripts/preflight.sh" "$id:/workspace/preflight.sh" >/dev/null 2>&1 || { echo 'preflight upload failed' >&2; exit 1; }
 host_path=${host_id//[^A-Za-z0-9_-]/_}
 "${ssh[@]}" "bash /workspace/preflight.sh '$gpu' '/workspace/output/hosts/$host_path'"
@@ -176,7 +189,8 @@ if [[ "$mode" == card ]]; then
   python3 - "$out" "$run_id" "$card_id" "$id" "$label" "$host_id" "$host" "$hourly" "$runtime" "$started_utc" "$end_utc" "$instance_state" <<'PY'
 import json,sys,yaml,pathlib,subprocess
 out,run_id,card_id,instance_id,label,host_id,machine_id,hourly,runtime,start,end,raw=sys.argv[1:]
-cfg=yaml.safe_load(open('harness/registry/runtime.yaml')); image=cfg['image']; digest=image.split('@',1)[1] if '@' in image else image
+cfg=yaml.safe_load(open('harness/registry/runtime.yaml'))
+digest=cfg['image_digest']; image=cfg['image'].split(':',1)[0]+'@'+digest
 try:
  x=json.loads(raw); x=x[0] if isinstance(x,list) else x
 except Exception: x={}

@@ -6,6 +6,17 @@
   measurements. Runtime commit pinned to `84e66d03218711dfcaa993e5f64a546abe82df9a`.
   Benchmark task inputs are committed as public data as of first publish.
 
+## Pinned runtime image
+
+The pinned llama.cpp commit is release tag `b11779`. The corresponding official
+GHCR image tag (`full-cuda-b11779` / `full-cuda12-b11779`) was not available when
+the runtime was checked, so the runtime image is built from that exact source
+commit by GitHub Actions. Its CUDA build sets
+`CMAKE_CUDA_ARCHITECTURES="75;86;89"` and `GGML_NATIVE=OFF`; it includes
+`llama-bench`, `llama-server`, `llama-cli`, and `llama-tokenize`. The published
+image is pulled by immutable digest. The digest is recorded in
+`harness/registry/runtime.yaml` and each run's `run.json`.
+
 ## v1 policy (draft)
 
 The CUDA Recipes 001 task suite is committed under `harness/tasks/` and licensed

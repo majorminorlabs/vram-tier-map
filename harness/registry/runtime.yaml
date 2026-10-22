@@ -1,4 +1,5 @@
-image: nvidia/cuda:12.8.1-devel-ubuntu22.04@sha256:a99a1860ba8e2916e5c3e73b72ec4c4301653a84586e05bfc9a2aa2d58027e97
+image: ghcr.io/majorminorlabs/vtm-llamacpp:84e66d0
+image_digest: pending-github-actions-publish
 image_platform: linux/amd64
 llama_cpp_repository: https://github.com/ggml-org/llama.cpp.git
 llama_cpp_commit: 84e66d03218711dfcaa993e5f64a546abe82df9a
@@ -6,6 +7,8 @@ cuda_toolkit: 12.8.1
 cmake_build_flags:
   - -DGGML_CUDA=ON
   - -DGGML_NATIVE=OFF
-  - -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURE}
+  - -DCMAKE_CUDA_ARCHITECTURES=75;86;89
   - -DLLAMA_BUILD_TESTS=OFF
   - -DLLAMA_BUILD_EXAMPLES=ON
+llama_bench_path: /workspace/bin/llama-bench
+llama_server_path: /workspace/llama.cpp/build/bin/llama-server
