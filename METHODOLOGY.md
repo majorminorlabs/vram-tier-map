@@ -3,9 +3,18 @@
 ## Version history
 
 - **v1 (draft):** Initial policy for reproducible, comparable local inference
-  measurements. Finalize before publishing an edition.
+  measurements. Runtime commit pinned to `84e66d03218711dfcaa993e5f64a546abe82df9a`.
+  Benchmark task inputs are committed as public data as of first publish.
 
 ## v1 policy (draft)
+
+The CUDA Recipes 001 task suite is committed under `harness/tasks/` and licensed
+CC-BY-4.0, with source commit and attribution recorded per task. It contains 40
+deterministic tasks across coding, terminal/system, tool use, structured data,
+and multi-step execution. Tool tasks use simulated fixtures and strict ordered
+call trace plus final-response checks; no model judge is used. These benchmark
+inputs are public as of first publish. Agent instructions, plans, handoffs,
+social assets, and articles remain outside the repository.
 
 Each result belongs to one card, run, model, quantization, and execution
 configuration. Preserve raw logs and host details with the run. Compare only
@@ -13,10 +22,12 @@ results with the same task set, context length, runtime settings, and metric
 definitions; disclose deviations as flags.
 
 The current pick is the best eligible model/quant for the card under the
-published task suite, context policy, and price cap. A result is eligible only
-when all required tasks pass and measurements are complete. Rank eligible
-results by aggregate generation throughput (tokens/second); use lower
-time-to-first-token (TTFT) as the tie-breaker. A missing runner-up is blank.
+published task suite, context policy, and price cap. For the draft v1 pick,
+usable means TTFT at 64K is at most 180 seconds and decode is at least 15
+tokens/second at approximately 64K depth. Among usable configurations, highest
+strict task pass rate wins; within five percentage points, lower wall-clock
+time to completion wins. The runner-up is the next usable configuration under
+the same ordering. A missing runner-up is blank.
 Any failures, missing measurements, hardware/runtime deviations, or price cap
 exceptions must be surfaced in flags and must not be silently discarded.
 
@@ -30,6 +41,10 @@ run ID; aggregate outputs and picks are regenerated from the run folders.
 
 ## Context policy
 
-The context length and workload must be pinned in each task/config. Do not
+The context length and workload must be pinned in each task/config. The target
+context is 131,072 tokens, with 65,536 as a fallback after KV-cache and CPU-MoE
+fit attempts. Use llama-bench `--n-depth` to prefill the requested synthetic
+depth; the task-suite long-context prefix is a separately measured real prompt.
+Do not
 compare results across different context lengths as if they were equivalent.
 Document any model-specific prompt limits or truncation in the result flags.

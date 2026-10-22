@@ -1,0 +1,2079 @@
+[
+  {
+    "id": "CO01",
+    "category": "coding",
+    "prompt": "Write a Python function named solve(xs) implementing the requested behavior. Return JSON only in the form {\"code\":\"...\"}. The behavior: Implement a function that returns the sum of a list of integers.",
+    "reference_response": {
+      "code": "def solve(xs):\n    return sum(xs)"
+    },
+    "negative_control": {
+      "code": "def solve(xs):\n    return max(xs)"
+    },
+    "scorer": "restricted-python-function-cases-v1",
+    "kind": "python_function",
+    "signature": "xs",
+    "cases": [
+      {
+        "args": [
+          [
+            2,
+            3,
+            4
+          ]
+        ],
+        "expected": 9
+      },
+      {
+        "args": [
+          [
+            0,
+            -1
+          ]
+        ],
+        "expected": -1
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "CO02",
+    "category": "coding",
+    "prompt": "Write a Python function named solve(xs) implementing the requested behavior. Return JSON only in the form {\"code\":\"...\"}. The behavior: Implement a function that returns the maximum integer in a nonempty list.",
+    "reference_response": {
+      "code": "def solve(xs):\n    return max(xs)"
+    },
+    "negative_control": {
+      "code": "def solve(xs):\n    return min(xs)"
+    },
+    "scorer": "restricted-python-function-cases-v1",
+    "kind": "python_function",
+    "signature": "xs",
+    "cases": [
+      {
+        "args": [
+          [
+            2,
+            7,
+            1
+          ]
+        ],
+        "expected": 7
+      },
+      {
+        "args": [
+          [
+            -4,
+            -2
+          ]
+        ],
+        "expected": -2
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "CO03",
+    "category": "coding",
+    "prompt": "Write a Python function named solve(s) implementing the requested behavior. Return JSON only in the form {\"code\":\"...\"}. The behavior: Implement a function that reverses a string without changing its characters.",
+    "reference_response": {
+      "code": "def solve(s):\n    return s[::-1]"
+    },
+    "negative_control": {
+      "code": "def solve(s):\n    return s"
+    },
+    "scorer": "restricted-python-function-cases-v1",
+    "kind": "python_function",
+    "signature": "s",
+    "cases": [
+      {
+        "args": [
+          "cat"
+        ],
+        "expected": "tac"
+      },
+      {
+        "args": [
+          "ab"
+        ],
+        "expected": "ba"
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "CO04",
+    "category": "coding",
+    "prompt": "Write a Python function named solve(s) implementing the requested behavior. Return JSON only in the form {\"code\":\"...\"}. The behavior: Implement a function that counts lowercase vowels in lowercase strings.",
+    "reference_response": {
+      "code": "def solve(s):\n    return sum(1 for c in s if c in 'aeiou')"
+    },
+    "negative_control": {
+      "code": "def solve(s):\n    return len(s)"
+    },
+    "scorer": "restricted-python-function-cases-v1",
+    "kind": "python_function",
+    "signature": "s",
+    "cases": [
+      {
+        "args": [
+          "education"
+        ],
+        "expected": 5
+      },
+      {
+        "args": [
+          "rhythm"
+        ],
+        "expected": 0
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "CO05",
+    "category": "coding",
+    "prompt": "Write a Python function named solve(xs) implementing the requested behavior. Return JSON only in the form {\"code\":\"...\"}. The behavior: Implement a function that removes duplicate integers while preserving first occurrence order.",
+    "reference_response": {
+      "code": "def solve(xs):\n    out = []\n    for x in xs:\n        if x not in out:\n            out = out + [x]\n    return out"
+    },
+    "negative_control": {
+      "code": "def solve(xs):\n    return sorted(set(xs))"
+    },
+    "scorer": "restricted-python-function-cases-v1",
+    "kind": "python_function",
+    "signature": "xs",
+    "cases": [
+      {
+        "args": [
+          [
+            3,
+            1,
+            3,
+            2,
+            1
+          ]
+        ],
+        "expected": [
+          3,
+          1,
+          2
+        ]
+      },
+      {
+        "args": [
+          [
+            4,
+            4,
+            4
+          ]
+        ],
+        "expected": [
+          4
+        ]
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "CO06",
+    "category": "coding",
+    "prompt": "Write a Python function named solve(n) implementing the requested behavior. Return JSON only in the form {\"code\":\"...\"}. The behavior: Implement a function that returns the factorial of a nonnegative integer.",
+    "reference_response": {
+      "code": "def solve(n):\n    out = 1\n    for i in range(2, n + 1):\n        out *= i\n    return out"
+    },
+    "negative_control": {
+      "code": "def solve(n):\n    return n * n"
+    },
+    "scorer": "restricted-python-function-cases-v1",
+    "kind": "python_function",
+    "signature": "n",
+    "cases": [
+      {
+        "args": [
+          5
+        ],
+        "expected": 120
+      },
+      {
+        "args": [
+          0
+        ],
+        "expected": 1
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "CO07",
+    "category": "coding",
+    "prompt": "Write a Python function named solve(s) implementing the requested behavior. Return JSON only in the form {\"code\":\"...\"}. The behavior: Implement a function that checks whether a string is a case-sensitive palindrome.",
+    "reference_response": {
+      "code": "def solve(s):\n    return s == s[::-1]"
+    },
+    "negative_control": {
+      "code": "def solve(s):\n    return s == s[::-1][::-1]"
+    },
+    "scorer": "restricted-python-function-cases-v1",
+    "kind": "python_function",
+    "signature": "s",
+    "cases": [
+      {
+        "args": [
+          "level"
+        ],
+        "expected": true
+      },
+      {
+        "args": [
+          "robot"
+        ],
+        "expected": false
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "CO08",
+    "category": "coding",
+    "prompt": "Write a Python function named solve(a, b) implementing the requested behavior. Return JSON only in the form {\"code\":\"...\"}. The behavior: Implement a function that merges two sorted integer lists into sorted order.",
+    "reference_response": {
+      "code": "def solve(a, b):\n    return sorted(a + b)"
+    },
+    "negative_control": {
+      "code": "def solve(a, b):\n    return a + b"
+    },
+    "scorer": "restricted-python-function-cases-v1",
+    "kind": "python_function",
+    "signature": "a, b",
+    "cases": [
+      {
+        "args": [
+          [
+            1,
+            3
+          ],
+          [
+            2,
+            4
+          ]
+        ],
+        "expected": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "args": [
+          [
+            -2,
+            5
+          ],
+          [
+            0,
+            6
+          ]
+        ],
+        "expected": [
+          -2,
+          0,
+          5,
+          6
+        ]
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "CO09",
+    "category": "coding",
+    "prompt": "Write a Python function named solve(xs) implementing the requested behavior. Return JSON only in the form {\"code\":\"...\"}. The behavior: Implement a function that returns the second largest distinct integer.",
+    "reference_response": {
+      "code": "def solve(xs):\n    return sorted(set(xs))[-2]"
+    },
+    "negative_control": {
+      "code": "def solve(xs):\n    return sorted(set(xs))[-1]"
+    },
+    "scorer": "restricted-python-function-cases-v1",
+    "kind": "python_function",
+    "signature": "xs",
+    "cases": [
+      {
+        "args": [
+          [
+            1,
+            5,
+            3,
+            5
+          ]
+        ],
+        "expected": 3
+      },
+      {
+        "args": [
+          [
+            8,
+            2,
+            7
+          ]
+        ],
+        "expected": 7
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "CO10",
+    "category": "coding",
+    "prompt": "Write a Python function named solve(c) implementing the requested behavior. Return JSON only in the form {\"code\":\"...\"}. The behavior: Implement a function that converts Celsius to Fahrenheit.",
+    "reference_response": {
+      "code": "def solve(c):\n    return c * 9 / 5 + 32"
+    },
+    "negative_control": {
+      "code": "def solve(c):\n    return c * 2"
+    },
+    "scorer": "restricted-python-function-cases-v1",
+    "kind": "python_function",
+    "signature": "c",
+    "cases": [
+      {
+        "args": [
+          20
+        ],
+        "expected": 68
+      },
+      {
+        "args": [
+          0
+        ],
+        "expected": 32
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "CO11",
+    "category": "coding",
+    "prompt": "Write a Python function named solve(words) implementing the requested behavior. Return JSON only in the form {\"code\":\"...\"}. The behavior: Implement a function that returns the longest word; ties go to the first.",
+    "reference_response": {
+      "code": "def solve(words):\n    return max(words, key=len)"
+    },
+    "negative_control": {
+      "code": "def solve(words):\n    return min(words, key=len)"
+    },
+    "scorer": "restricted-python-function-cases-v1",
+    "kind": "python_function",
+    "signature": "words",
+    "cases": [
+      {
+        "args": [
+          [
+            "plum",
+            "peach",
+            "pear"
+          ]
+        ],
+        "expected": "peach"
+      },
+      {
+        "args": [
+          [
+            "a",
+            "bbb",
+            "cc"
+          ]
+        ],
+        "expected": "bbb"
+      },
+      {
+        "args": [
+          [
+            "pear",
+            "plum"
+          ]
+        ],
+        "expected": "pear"
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "CO12",
+    "category": "coding",
+    "prompt": "Write a Python function named solve(xs) implementing the requested behavior. Return JSON only in the form {\"code\":\"...\"}. The behavior: Implement a function that flattens one level of a nested integer list.",
+    "reference_response": {
+      "code": "def solve(xs):\n    return sum(xs, [])"
+    },
+    "negative_control": {
+      "code": "def solve(xs):\n    return xs"
+    },
+    "scorer": "restricted-python-function-cases-v1",
+    "kind": "python_function",
+    "signature": "xs",
+    "cases": [
+      {
+        "args": [
+          [
+            [
+              1,
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ]
+          ]
+        ],
+        "expected": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "args": [
+          [
+            [
+              5
+            ],
+            [],
+            [
+              6,
+              7
+            ]
+          ]
+        ],
+        "expected": [
+          5,
+          6,
+          7
+        ]
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "TE01",
+    "category": "terminal_system",
+    "prompt": "In a POSIX shell, give the command that lists hidden and non-hidden files in long format. Respond with JSON only and no markdown. The response must be exactly one JSON object with a single key named \"result\" whose string value is the command.",
+    "reference_response": {
+      "result": "ls -la"
+    },
+    "negative_control": {
+      "result": "ls -l"
+    },
+    "scorer": "terminal-command-allowlist-v1",
+    "accepted_responses": [
+      {
+        "result": "ls -la"
+      },
+      {
+        "result": "ls -al"
+      },
+      {
+        "result": "ls -a -l"
+      },
+      {
+        "result": "ls -l -a"
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "TE02",
+    "category": "terminal_system",
+    "prompt": "Give the command that prints the current working directory. Respond with JSON only and no markdown. The response must be exactly one JSON object with a single key named \"result\" whose string value is the command.",
+    "reference_response": {
+      "result": "pwd"
+    },
+    "negative_control": {
+      "result": "cd"
+    },
+    "scorer": "terminal-command-allowlist-v1",
+    "accepted_responses": [
+      {
+        "result": "pwd"
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "TE03",
+    "category": "terminal_system",
+    "prompt": "Give a command to find files ending in .log under ./logs recursively. Respond with JSON only and no markdown. The response must be exactly one JSON object with a single key named \"result\" whose string value is the command.",
+    "reference_response": {
+      "result": "find ./logs -type f -name '*.log'"
+    },
+    "negative_control": {
+      "result": "ls ./logs/*.log"
+    },
+    "scorer": "terminal-command-allowlist-v1",
+    "accepted_responses": [
+      {
+        "result": "find ./logs -type f -name '*.log'"
+      },
+      {
+        "result": "find ./logs -name '*.log' -type f"
+      },
+      {
+        "result": "find ./logs -type f -name \"*.log\""
+      },
+      {
+        "result": "find ./logs -name \"*.log\" -type f"
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "TE04",
+    "category": "terminal_system",
+    "prompt": "Give the command that shows the first 10 lines of file.txt. Respond with JSON only and no markdown. The response must be exactly one JSON object with a single key named \"result\" whose string value is the command.",
+    "reference_response": {
+      "result": "head -n 10 file.txt"
+    },
+    "negative_control": {
+      "result": "tail -n 10 file.txt"
+    },
+    "scorer": "terminal-command-allowlist-v1",
+    "accepted_responses": [
+      {
+        "result": "head -n 10 file.txt"
+      },
+      {
+        "result": "head -10 file.txt"
+      },
+      {
+        "result": "sed -n '1,10p' file.txt"
+      },
+      {
+        "result": "sed -n \"1,10p\" file.txt"
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "TE05",
+    "category": "terminal_system",
+    "prompt": "Give a command to count lines in data.csv. Respond with JSON only and no markdown. The response must be exactly one JSON object with a single key named \"result\" whose string value is the command.",
+    "reference_response": {
+      "result": "wc -l data.csv"
+    },
+    "negative_control": {
+      "result": "wc -w data.csv"
+    },
+    "scorer": "terminal-command-allowlist-v1",
+    "accepted_responses": [
+      {
+        "result": "wc -l data.csv"
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "TE06",
+    "category": "terminal_system",
+    "prompt": "Give the command to search recursively for the literal word ERROR in ./app. Respond with JSON only and no markdown. The response must be exactly one JSON object with a single key named \"result\" whose string value is the command.",
+    "reference_response": {
+      "result": "grep -R 'ERROR' ./app"
+    },
+    "negative_control": {
+      "result": "grep 'ERROR' ./app"
+    },
+    "scorer": "terminal-command-allowlist-v1",
+    "accepted_responses": [
+      {
+        "result": "grep -R 'ERROR' ./app"
+      },
+      {
+        "result": "grep -r 'ERROR' ./app"
+      },
+      {
+        "result": "grep -R \"ERROR\" ./app"
+      },
+      {
+        "result": "grep -r \"ERROR\" ./app"
+      },
+      {
+        "result": "grep -R ERROR ./app"
+      },
+      {
+        "result": "grep -r ERROR ./app"
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "TE07",
+    "category": "terminal_system",
+    "prompt": "Give a command that safely previews the disk usage of the current directory's immediate children in human-readable form. Respond with JSON only and no markdown. The response must be exactly one JSON object with a single key named \"result\" whose string value is the command.",
+    "reference_response": {
+      "result": "du -h -d 1 ."
+    },
+    "negative_control": {
+      "result": "rm -rf *"
+    },
+    "scorer": "terminal-command-allowlist-v1",
+    "accepted_responses": [
+      {
+        "result": "du -h -d 1 ."
+      },
+      {
+        "result": "du -h --max-depth=1 ."
+      },
+      {
+        "result": "du -hd1 ."
+      },
+      {
+        "result": "du -h -d1 ."
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "TE08",
+    "category": "terminal_system",
+    "prompt": "Give a command to show listening TCP sockets with process information using ss. Respond with JSON only and no markdown. The response must be exactly one JSON object with a single key named \"result\" whose string value is the command.",
+    "reference_response": {
+      "result": "ss -ltnp"
+    },
+    "negative_control": {
+      "result": "ss -tan"
+    },
+    "scorer": "terminal-command-allowlist-v1",
+    "accepted_responses": [
+      {
+        "result": "ss -ltnp"
+      },
+      {
+        "result": "ss -ltpn"
+      },
+      {
+        "result": "ss -nltp"
+      },
+      {
+        "result": "ss -ntlp"
+      },
+      {
+        "result": "ss -p -l -t -n"
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "TO01",
+    "category": "tool_use",
+    "prompt": "A file tool exposes read(path), write(path,content), and list(path). Read /workspace/README.md and take no other action. Respond with JSON only and no markdown.\nUse the available tools; after the requested outcome is complete, return JSON exactly {\"done\":true} and no markdown.",
+    "reference_response": {
+      "done": true
+    },
+    "negative_control": [
+      {
+        "tool": "write",
+        "path": "/workspace/README.md",
+        "content": ""
+      }
+    ],
+    "scorer": "canonical-json-equality-v1",
+    "expected_calls": [
+      {
+        "tool": "read",
+        "path": "/workspace/README.md"
+      }
+    ],
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "read",
+          "description": "Perform the read operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "TO02",
+    "category": "tool_use",
+    "prompt": "A calculator tool exposes add(a,b). Use it to compute 17 + 25. Respond with JSON only and no markdown.\nUse the available tools; after the requested outcome is complete, return JSON exactly {\"done\":true} and no markdown.",
+    "reference_response": {
+      "done": true
+    },
+    "negative_control": [
+      {
+        "tool": "add",
+        "a": 17,
+        "b": 24
+      }
+    ],
+    "scorer": "canonical-json-equality-v1",
+    "expected_calls": [
+      {
+        "tool": "add",
+        "a": 17,
+        "b": 25
+      }
+    ],
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "add",
+          "description": "Perform the add operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "a": {
+                "type": "integer"
+              },
+              "b": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "a",
+              "b"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "TO03",
+    "category": "tool_use",
+    "prompt": "A ticket tool exposes get(id) and close(id). Inspect ticket T-204 only; do not change it. Respond with JSON only and no markdown.\nUse the available tools; after the requested outcome is complete, return JSON exactly {\"done\":true} and no markdown.",
+    "reference_response": {
+      "done": true
+    },
+    "negative_control": [
+      {
+        "tool": "close",
+        "id": "T-204"
+      }
+    ],
+    "scorer": "canonical-json-equality-v1",
+    "expected_calls": [
+      {
+        "tool": "get",
+        "id": "T-204"
+      }
+    ],
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get",
+          "description": "Perform the get operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "TO04",
+    "category": "tool_use",
+    "prompt": "A calendar tool exposes list(date) and create(date,title). Find events on 2026-11-02 without editing the calendar. Respond with JSON only and no markdown.\nUse the available tools; after the requested outcome is complete, return JSON exactly {\"done\":true} and no markdown.",
+    "reference_response": {
+      "done": true
+    },
+    "negative_control": [
+      {
+        "tool": "create",
+        "date": "2026-11-02",
+        "title": ""
+      }
+    ],
+    "scorer": "canonical-json-equality-v1",
+    "expected_calls": [
+      {
+        "tool": "list",
+        "date": "2026-11-02"
+      }
+    ],
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "list",
+          "description": "Perform the list operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "date"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "TO05",
+    "category": "tool_use",
+    "prompt": "A database tool exposes query(sql) and execute(sql). Count rows in table orders; use a read-only operation. Respond with JSON only and no markdown.\nUse the available tools; after the requested outcome is complete, return JSON exactly {\"done\":true} and no markdown.",
+    "reference_response": {
+      "done": true
+    },
+    "negative_control": [
+      {
+        "tool": "execute",
+        "sql": "DELETE FROM orders;"
+      }
+    ],
+    "scorer": "canonical-json-equality-v1",
+    "expected_calls": [
+      {
+        "tool": "query",
+        "sql": "SELECT COUNT(*) FROM orders;"
+      }
+    ],
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "query",
+          "description": "Perform the query operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "sql": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sql"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "TO06",
+    "category": "tool_use",
+    "prompt": "A browser tool exposes open(url) and click(selector). Open https://example.org and take no further action. Respond with JSON only and no markdown.\nUse the available tools; after the requested outcome is complete, return JSON exactly {\"done\":true} and no markdown.",
+    "reference_response": {
+      "done": true
+    },
+    "negative_control": [
+      {
+        "tool": "click",
+        "selector": "*"
+      }
+    ],
+    "scorer": "canonical-json-equality-v1",
+    "expected_calls": [
+      {
+        "tool": "open",
+        "url": "https://example.org"
+      }
+    ],
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "open",
+          "description": "Perform the open operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "url"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "TO07",
+    "category": "tool_use",
+    "prompt": "A git tool exposes status(), diff(), commit(message). Inspect uncommitted changes only. Respond with JSON only and no markdown.\nUse the available tools; after the requested outcome is complete, return JSON exactly {\"done\":true} and no markdown.",
+    "reference_response": {
+      "done": true
+    },
+    "negative_control": [
+      {
+        "tool": "commit",
+        "message": "checkpoint"
+      }
+    ],
+    "scorer": "canonical-json-equality-v1",
+    "expected_calls": [
+      {
+        "tool": "status"
+      },
+      {
+        "tool": "diff"
+      }
+    ],
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "status",
+          "description": "Perform the status operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "diff",
+          "description": "Perform the diff operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "TO08",
+    "category": "tool_use",
+    "prompt": "A weather tool exposes forecast(city,date). Request the forecast for Oslo on 2026-12-01. Respond with JSON only and no markdown.\nUse the available tools; after the requested outcome is complete, return JSON exactly {\"done\":true} and no markdown.",
+    "reference_response": {
+      "done": true
+    },
+    "negative_control": [
+      {
+        "tool": "forecast",
+        "city": "Oslo",
+        "date": "2026-12-02"
+      }
+    ],
+    "scorer": "canonical-json-equality-v1",
+    "expected_calls": [
+      {
+        "tool": "forecast",
+        "city": "Oslo",
+        "date": "2026-12-01"
+      }
+    ],
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "forecast",
+          "description": "Perform the forecast operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "city": {
+                "type": "string"
+              },
+              "date": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "city",
+              "date"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "ST01",
+    "category": "structured_data",
+    "prompt": "Return JSON only: convert rows [['name','score'],['Ada',9],['Lin',8]] to an array of objects. Respond with JSON only and no markdown.",
+    "reference_response": [
+      {
+        "name": "Ada",
+        "score": 9
+      },
+      {
+        "name": "Lin",
+        "score": 8
+      }
+    ],
+    "negative_control": [
+      {
+        "name": "Ada",
+        "score": "9"
+      },
+      {
+        "name": "Lin",
+        "score": 8
+      }
+    ],
+    "scorer": "json-value-equality-v2",
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "ST02",
+    "category": "structured_data",
+    "prompt": "Return JSON only: sort records by numeric value ascending; input [{\"k\":\"b\",\"v\":2},{\"k\":\"a\",\"v\":1}]. Respond with JSON only and no markdown.",
+    "reference_response": [
+      {
+        "k": "a",
+        "v": 1
+      },
+      {
+        "k": "b",
+        "v": 2
+      }
+    ],
+    "negative_control": [
+      {
+        "k": "b",
+        "v": 2
+      },
+      {
+        "k": "a",
+        "v": 1
+      }
+    ],
+    "scorer": "json-value-equality-v2",
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "ST03",
+    "category": "structured_data",
+    "prompt": "Return JSON only: count occurrences in ['x','y','x','z','x']. Respond with JSON only and no markdown.",
+    "reference_response": {
+      "x": 3,
+      "y": 1,
+      "z": 1
+    },
+    "negative_control": {
+      "x": 2,
+      "y": 1,
+      "z": 2
+    },
+    "scorer": "json-value-equality-v2",
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "ST04",
+    "category": "structured_data",
+    "prompt": "Return JSON only: select IDs with active=true from [{\"id\":1,\"active\":true},{\"id\":2,\"active\":false},{\"id\":3,\"active\":true}]. Respond with JSON only and no markdown.",
+    "reference_response": [
+      1,
+      3
+    ],
+    "negative_control": [
+      1,
+      2,
+      3
+    ],
+    "scorer": "json-value-equality-v2",
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "ST05",
+    "category": "structured_data",
+    "prompt": "Return JSON only: compute the mean of [2,4,9], rounded to 2 decimal places. Respond with JSON only and no markdown.",
+    "reference_response": 5.0,
+    "negative_control": 15.0,
+    "scorer": "json-value-equality-v2",
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "ST06",
+    "category": "structured_data",
+    "prompt": "Return JSON only: map each product to its total price (quantity times unit_price): [{\"quantity\":3,\"unit_price\":4},{\"quantity\":2,\"unit_price\":7}]. Respond with JSON only and no markdown.",
+    "reference_response": [
+      12,
+      14
+    ],
+    "negative_control": [
+      7,
+      11
+    ],
+    "scorer": "json-value-equality-v2",
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "MU01",
+    "category": "multi_step",
+    "prompt": "A shipment needs five cable units. The inventory starts at 12. Tools: get_stock(product), adjust_stock(product,delta). Inspect stock, deduct exactly five, and verify the final stock. Use the available tools, then return JSON exactly {\"done\":true}. Respond with JSON only and no markdown.\nUse the available tools; after the requested outcome is complete, return JSON exactly {\"done\":true} and no markdown.",
+    "reference_response": {
+      "done": true
+    },
+    "negative_control": [
+      {
+        "tool": "get_stock",
+        "product": "cable"
+      },
+      {
+        "tool": "adjust_stock",
+        "product": "cable",
+        "delta": -6
+      },
+      {
+        "tool": "get_stock",
+        "product": "cable"
+      }
+    ],
+    "scorer": "ordered-simulated-state-transition-v1",
+    "expected_calls": [
+      {
+        "tool": "get_stock",
+        "product": "cable"
+      },
+      {
+        "tool": "adjust_stock",
+        "product": "cable",
+        "delta": -5
+      },
+      {
+        "tool": "get_stock",
+        "product": "cable"
+      }
+    ],
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_stock",
+          "description": "Perform the get_stock operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "product": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "product"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "adjust_stock",
+          "description": "Perform the adjust_stock operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "product": {
+                "type": "string"
+              },
+              "delta": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "product",
+              "delta"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "MU02",
+    "category": "multi_step",
+    "prompt": "Move drafts/report.csv to archive/report.csv. Tools: list_file(path), copy_file(src,dst), verify_file(path), delete_file(path). Copy and verify the destination before deleting the source. Use the available tools, then return JSON exactly {\"done\":true}. Respond with JSON only and no markdown.\nUse the available tools; after the requested outcome is complete, return JSON exactly {\"done\":true} and no markdown.",
+    "reference_response": {
+      "done": true
+    },
+    "negative_control": [
+      {
+        "tool": "list_file",
+        "path": "drafts/report.csv"
+      },
+      {
+        "tool": "copy_file",
+        "src": "drafts/report.csv",
+        "dst": "archive/report.csv"
+      },
+      {
+        "tool": "delete_file",
+        "path": "drafts/report.csv"
+      },
+      {
+        "tool": "verify_file",
+        "path": "archive/report.csv"
+      }
+    ],
+    "scorer": "ordered-simulated-state-transition-v1",
+    "expected_calls": [
+      {
+        "tool": "list_file",
+        "path": "drafts/report.csv"
+      },
+      {
+        "tool": "copy_file",
+        "src": "drafts/report.csv",
+        "dst": "archive/report.csv"
+      },
+      {
+        "tool": "verify_file",
+        "path": "archive/report.csv"
+      },
+      {
+        "tool": "delete_file",
+        "path": "drafts/report.csv"
+      }
+    ],
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "list_file",
+          "description": "Perform the list_file operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "copy_file",
+          "description": "Perform the copy_file operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "src": {
+                "type": "string"
+              },
+              "dst": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "src",
+              "dst"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "verify_file",
+          "description": "Perform the verify_file operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "delete_file",
+          "description": "Perform the delete_file operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "MU03",
+    "category": "multi_step",
+    "prompt": "Complete project tasks. D is required by B and C; both B and C are required by A. Tool: complete_task(id). Use the available tools to complete the objective, then return JSON exactly {\"done\":true}. Respond with JSON only and no markdown.\nUse the available tools; after the requested outcome is complete, return JSON exactly {\"done\":true} and no markdown.",
+    "reference_response": {
+      "done": true
+    },
+    "negative_control": [
+      {
+        "tool": "complete_task",
+        "id": "A"
+      },
+      {
+        "tool": "complete_task",
+        "id": "B"
+      },
+      {
+        "tool": "complete_task",
+        "id": "C"
+      },
+      {
+        "tool": "complete_task",
+        "id": "D"
+      }
+    ],
+    "scorer": "ordered-simulated-state-transition-v1",
+    "expected_calls": [
+      {
+        "tool": "complete_task",
+        "id": "D"
+      },
+      {
+        "tool": "complete_task",
+        "id": "B"
+      },
+      {
+        "tool": "complete_task",
+        "id": "C"
+      },
+      {
+        "tool": "complete_task",
+        "id": "A"
+      }
+    ],
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "complete_task",
+          "description": "Perform the complete_task operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "MU04",
+    "category": "multi_step",
+    "prompt": "Schedule a review for 2026-11-03 from 10:00 to 11:00. Existing events are 09:00-10:00 and 11:00-12:00. Tools: find_availability(date,start,end), create_event(date,start,end,title). Check availability first, then create only if free. Use the available tools, then return JSON exactly {\"done\":true}. Respond with JSON only and no markdown.\nUse the available tools; after the requested outcome is complete, return JSON exactly {\"done\":true} and no markdown.",
+    "reference_response": {
+      "done": true
+    },
+    "negative_control": [
+      {
+        "tool": "create_event",
+        "date": "2026-11-03",
+        "start": "09:30",
+        "end": "10:30",
+        "title": "Review"
+      }
+    ],
+    "scorer": "ordered-simulated-state-transition-v1",
+    "expected_calls": [
+      {
+        "tool": "find_availability",
+        "date": "2026-11-03",
+        "start": "10:00",
+        "end": "11:00"
+      },
+      {
+        "tool": "create_event",
+        "date": "2026-11-03",
+        "start": "10:00",
+        "end": "11:00",
+        "title": "Review"
+      }
+    ],
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "find_availability",
+          "description": "Perform the find_availability operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string"
+              },
+              "start": {
+                "type": "string"
+              },
+              "end": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "date",
+              "start",
+              "end"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "create_event",
+          "description": "Perform the create_event operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string"
+              },
+              "start": {
+                "type": "string"
+              },
+              "end": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "date",
+              "start",
+              "end",
+              "title"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "MU05",
+    "category": "multi_step",
+    "prompt": "Prepare a report summary from the fixed source table. Tools: summarize_source(name), write_summary(name,rows), verify_summary(name). Summarize, write the exact returned row count, then verify. Use the available tools, then return JSON exactly {\"done\":true}. Respond with JSON only and no markdown.\nUse the available tools; after the requested outcome is complete, return JSON exactly {\"done\":true} and no markdown.",
+    "reference_response": {
+      "done": true
+    },
+    "negative_control": [
+      {
+        "tool": "write_summary",
+        "name": "quarterly-summary",
+        "rows": 2
+      },
+      {
+        "tool": "summarize_source",
+        "name": "quarterly"
+      },
+      {
+        "tool": "verify_summary",
+        "name": "quarterly-summary"
+      }
+    ],
+    "scorer": "ordered-simulated-state-transition-v1",
+    "expected_calls": [
+      {
+        "tool": "summarize_source",
+        "name": "quarterly"
+      },
+      {
+        "tool": "write_summary",
+        "name": "quarterly-summary",
+        "rows": 3
+      },
+      {
+        "tool": "verify_summary",
+        "name": "quarterly-summary"
+      }
+    ],
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "summarize_source",
+          "description": "Perform the summarize_source operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "write_summary",
+          "description": "Perform the write_summary operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "rows": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "name",
+              "rows"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "verify_summary",
+          "description": "Perform the verify_summary operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  },
+  {
+    "id": "MU06",
+    "category": "multi_step",
+    "prompt": "Prepare a release candidate without deploying it. Tools: run_tests(project), build_package(project), verify_package(project). Run tests first; package only after tests pass; verify the package. Use the available tools, then return JSON exactly {\"done\":true}. Respond with JSON only and no markdown.\nUse the available tools; after the requested outcome is complete, return JSON exactly {\"done\":true} and no markdown.",
+    "reference_response": {
+      "done": true
+    },
+    "negative_control": [
+      {
+        "tool": "build_package",
+        "project": "app"
+      },
+      {
+        "tool": "run_tests",
+        "project": "app"
+      },
+      {
+        "tool": "verify_package",
+        "project": "app"
+      }
+    ],
+    "scorer": "ordered-simulated-state-transition-v1",
+    "expected_calls": [
+      {
+        "tool": "run_tests",
+        "project": "app"
+      },
+      {
+        "tool": "build_package",
+        "project": "app"
+      },
+      {
+        "tool": "verify_package",
+        "project": "app"
+      }
+    ],
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "run_tests",
+          "description": "Perform the run_tests operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "project": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "project"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "build_package",
+          "description": "Perform the build_package operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "project": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "project"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "verify_package",
+          "description": "Perform the verify_package operation in the task fixture.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "project": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "project"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "attribution": {
+      "creator": "MAJOR//MINOR",
+      "source": "CUDA Recipes 001",
+      "source_repository": "local CUDA Recipes source repository",
+      "source_file": "001-24gb-compression/DATA/tasks.json",
+      "source_commit": "5436f65d6f2743f11c922cd78fb7362e655df781",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "third_party_sources": []
+    }
+  }
+]

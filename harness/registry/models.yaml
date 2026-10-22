@@ -1,2 +1,240 @@
-# Pin source revision, GGUF repo/file, SHA-256, and tested quants per model.
-models: []
+# Source and GGUF revisions are immutable Hub commit IDs. SHA-256 values are Hub file hashes.
+models:
+- model_id: qwen3.6-35b-a3b
+  source: Qwen/Qwen3.6-35B-A3B
+  source_revision: 995ad96eacd98c81ed38be0c5b274b04031597b0
+  gguf_repo: unsloth/Qwen3.6-35B-A3B-GGUF
+  gguf_revision: a483e9e6cbd595906af30beda3187c2663a1118c
+  files:
+  - quant: MXFP4_MOE
+    file: Qwen3.6-35B-A3B-MXFP4_MOE.gguf
+    size_bytes: 21706144736
+    sha256: 2fdd20997c4d88ee25f70f500c61f8b999378d92ab055f9d450fc70d617158d3
+  - quant: Q8_0
+    file: Qwen3.6-35B-A3B-Q8_0.gguf
+    size_bytes: 36903140320
+    sha256: d1a395809f65a43a13ad119eb4e7acdef1ac6d68120f39902c8ab96e72794a59
+  - quant: IQ1_M
+    file: Qwen3.6-35B-A3B-UD-IQ1_M.gguf
+    size_bytes: 10047749088
+    sha256: 0dc2488c89d916c5599f7c03a286cd8f37a6a75a02bc13caf41c6bac26d70c9e
+  - quant: IQ2_M
+    file: Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+    size_bytes: 11522702304
+    sha256: 2be7ef1ed7e1af8b10d3829102cf9a6c2bd5ddb64d675b4ece23a60799403d43
+  - quant: IQ2_XXS
+    file: Qwen3.6-35B-A3B-UD-IQ2_XXS.gguf
+    size_bytes: 10756586464
+    sha256: 2e8f5f705355c56311432d0a8a5d14a696dbb7e4b197d05c75ba805fc1857bef
+  - quant: IQ3_S
+    file: Qwen3.6-35B-A3B-UD-IQ3_S.gguf
+    size_bytes: 13676723168
+    sha256: 66a3ca888ce13482b40c333db2432c0ebde3a7b13754fc29f0c6f5e89703ec66
+  - quant: IQ3_XXS
+    file: Qwen3.6-35B-A3B-UD-IQ3_XXS.gguf
+    size_bytes: 13211155424
+    sha256: 9c964e657212fea1f24905dd7b0a89b82fd807d19fab0b41da14251b07b88fbe
+  - quant: IQ4_NL
+    file: Qwen3.6-35B-A3B-UD-IQ4_NL.gguf
+    size_bytes: 18040888288
+    sha256: 0d17e255dc257a11f398ed4bc8d62412d8ce9ca24b3fce2947d962e4bfed5758
+  - quant: IQ4_NL_XL
+    file: Qwen3.6-35B-A3B-UD-IQ4_NL_XL.gguf
+    size_bytes: 19500506080
+    sha256: 071ee2a008ec51372f990d8efbea92ec9dd0137974110ef68fbfde429c8c6dd4
+  - quant: IQ4_XS
+    file: Qwen3.6-35B-A3B-UD-IQ4_XS.gguf
+    size_bytes: 17730509792
+    sha256: 649d7508507b84638732c4f52c24c8b15843c6dca2f3ff793ae07c14a67ebbb3
+  - quant: Q2_K_XL
+    file: Qwen3.6-35B-A3B-UD-Q2_K_XL.gguf
+    size_bytes: 12290628576
+    sha256: 96b9c0af5c77a4ecaabe3983175112b5ece763261c1ece12b2494b692a70dad7
+  - quant: Q3_K_M
+    file: Qwen3.6-35B-A3B-UD-Q3_K_M.gguf
+    size_bytes: 16600710112
+    sha256: 1b715841683f960bd9a49f008181bd910ee169b78d4cf465b6fde7f4d929ff99
+  - quant: Q3_K_S
+    file: Qwen3.6-35B-A3B-UD-Q3_K_S.gguf
+    size_bytes: 15359196128
+    sha256: 212ccdf37d416167ce8dcd7e3a59bcd45b30ac7531822a1e7bb79bfbacb2d1aa
+  - quant: Q3_K_XL
+    file: Qwen3.6-35B-A3B-UD-Q3_K_XL.gguf
+    size_bytes: 16845511648
+    sha256: a832b9689925f1bd335bbe985cdfb06c36bf2cf268f4f8f6eceafa3ceb515617
+  - quant: Q4_K_M
+    file: Qwen3.6-35B-A3B-UD-Q4_K_M.gguf
+    size_bytes: 22134528992
+    sha256: ac0e2c1189e055faa36eff361580e79c5bd6f8e76bffb4ce547f167d53e31a61
+  - quant: Q4_K_S
+    file: Qwen3.6-35B-A3B-UD-Q4_K_S.gguf
+    size_bytes: 20893015008
+    sha256: a8138f183e3993f12cdc23afd2babb8cdb084e64088ce4a256d49101d47b949c
+  - quant: Q4_K_XL
+    file: Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf
+    size_bytes: 22360456160
+    sha256: 707a55a8a4397ecde44de0c499d3e68c1ad1d240d1da65826b4949d1043f4450
+  - quant: Q5_K_M
+    file: Qwen3.6-35B-A3B-UD-Q5_K_M.gguf
+    size_bytes: 26456194016
+    sha256: c13ce26253ea334df472bd8fbd2d6da66d8a41195c17f6fcbf44c4d20ece0932
+  - quant: Q5_K_S
+    file: Qwen3.6-35B-A3B-UD-Q5_K_S.gguf
+    size_bytes: 24942050272
+    sha256: 31d886cbd8c3db2e66f4366cbfed93389cb982bdced1caa37262befdb34f5715
+  - quant: Q5_K_XL
+    file: Qwen3.6-35B-A3B-UD-Q5_K_XL.gguf
+    size_bytes: 26592508896
+    sha256: 25233af7642e3a91bd52cc4aeefdbd4a117479088e06cf1aea5b6bedb443c506
+  - quant: Q6_K
+    file: Qwen3.6-35B-A3B-UD-Q6_K.gguf
+    size_bytes: 29308320736
+    sha256: 4fe53b148b46f9b88830e2a3055c5b15c3a4d1e3ddc9a1384a108d8b9d59f043
+  - quant: Q6_K_XL
+    file: Qwen3.6-35B-A3B-UD-Q6_K_XL.gguf
+    size_bytes: 31843777504
+    sha256: f6b6c6d5cfa6f00d964eeb7add28eb14ce7481734d506b90681007678cd2c484
+  - quant: Q8_K_XL
+    file: Qwen3.6-35B-A3B-UD-Q8_K_XL.gguf
+    size_bytes: 38451182560
+    sha256: b762215c5f507f4865df4ac3d1afa803828afa41e05ecac3fac431a67bbd88e8
+- model_id: qwen3.8-27b
+  source: Qwen/Qwen3.8-27B
+  source_revision: 1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0
+  gguf_repo: Abiray/Qwen3.8-27B-Q4_K_M-GGUF
+  gguf_revision: f7a1cda580fe828415151042bf9f3dc5bb8b0d76
+  files:
+  - quant: Q4_K_M
+    file: Qwen3.8-27B-Q4_K_M.gguf
+    size_bytes: 16810714400
+    sha256: 6a96cc760fc65cc6b9ea7f1922e3ff8b2a48c09f209456f23bbae9ef7032c867
+- model_id: gemma-4-26b-a4b
+  source: google/gemma-4-26B-A4B-it
+  source_revision: 4d7ae4984b7db7de8f8457170b3f1a419ee76d52
+  gguf_repo: unsloth/gemma-4-26B-A4B-it-GGUF
+  gguf_revision: c099eb48e663fd284577b04978a94ffccb261841
+  files:
+  - quant: MXFP4_MOE
+    file: gemma-4-26B-A4B-it-MXFP4_MOE.gguf
+    size_bytes: 16551048928
+    sha256: a8908250f2a72a5824382d488158f12b65effa24e6c6b1244e5b4818ac0a1459
+  - quant: Q8_0
+    file: gemma-4-26B-A4B-it-Q8_0.gguf
+    size_bytes: 26859861728
+    sha256: 5f7cbd0f4564e84342fc34321a09acb54b1a3da9215124e5bf444baa6dda152c
+  - quant: IQ2_M
+    file: gemma-4-26B-A4B-it-UD-IQ2_M.gguf
+    size_bytes: 10014755296
+    sha256: 3fe245f4436ab44c103291222e81c514e53ca382871b555df24fea11e36b3c3a
+  - quant: IQ2_XXS
+    file: gemma-4-26B-A4B-it-UD-IQ2_XXS.gguf
+    size_bytes: 9922480608
+    sha256: 52f98e6fc6df62438dff8f57ac049f60b4c36acf93786b6aeeedc129acc02343
+  - quant: IQ3_S
+    file: gemma-4-26B-A4B-it-UD-IQ3_S.gguf
+    size_bytes: 11289671136
+    sha256: 878be93f9c238ea853b3fd1eb602637ce3cf1cddea56dc345d9a7bf2d6093e29
+  - quant: IQ3_XXS
+    file: gemma-4-26B-A4B-it-UD-IQ3_XXS.gguf
+    size_bytes: 11416548832
+    sha256: 3b7aec683e176e1d957d007e0fb590611d82aec4db358d99b7f9714b6bc7bfc2
+  - quant: IQ4_NL
+    file: gemma-4-26B-A4B-it-UD-IQ4_NL.gguf
+    size_bytes: 13613037280
+    sha256: eeb867f279ea5a3d52a0dc15fe8ada677b3328a328530957f3f9a5da93cb10b8
+  - quant: IQ4_XS
+    file: gemma-4-26B-A4B-it-UD-IQ4_XS.gguf
+    size_bytes: 13597177568
+    sha256: babd1e389d386352f71600765d37390f7dc993fbfad6725caccf996ffe34aecf
+  - quant: Q2_K_XL
+    file: gemma-4-26B-A4B-it-UD-Q2_K_XL.gguf
+    size_bytes: 10546934240
+    sha256: 2a1d26dfe6ea00a467940a5728316af6edb366bbdba950d65b85d232392fb658
+  - quant: Q3_K_M
+    file: gemma-4-26B-A4B-it-UD-Q3_K_M.gguf
+    size_bytes: 12728497888
+    sha256: 811882f6df81c8ea204a5d382f196d6bd601245091786912d4c70df41cdfa052
+  - quant: Q3_K_XL
+    file: gemma-4-26B-A4B-it-UD-Q3_K_XL.gguf
+    size_bytes: 12907280096
+    sha256: 90a918830420e6a36e01c0d219e563f1d0ca7f223dffd90ad4e02ef4f3253fde
+  - quant: Q4_K_M
+    file: gemma-4-26B-A4B-it-UD-Q4_K_M.gguf
+    size_bytes: 16947541728
+    sha256: f2c28b3dc4776931ac6f879e11f203dec637ea0f14267a86ec8f6165f63f293f
+  - quant: Q4_K_S
+    file: gemma-4-26B-A4B-it-UD-Q4_K_S.gguf
+    size_bytes: 16487610080
+    sha256: 675de4b188a3072c9da8260fe2eddfdb7d03b16f615b6619021989d929a51b2b
+  - quant: Q4_K_XL
+    file: gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf
+    size_bytes: 17010980576
+    sha256: ef728c8e0c337fd1067b947af006e38a9ef2419e56feced4fd29b4bf0636e30c
+  - quant: Q5_K_M
+    file: gemma-4-26B-A4B-it-UD-Q5_K_M.gguf
+    size_bytes: 21150365408
+    sha256: 769d386a69d43782321c1bad04d41d29a2e84b2c06e6a277cd99fd6265ec0e80
+  - quant: Q5_K_S
+    file: gemma-4-26B-A4B-it-UD-Q5_K_S.gguf
+    size_bytes: 18850707168
+    sha256: ce87883f935900407ce0cb4b1fc4d423b6af8c2970392387cc4bc0ae8e572825
+  - quant: Q5_K_XL
+    file: gemma-4-26B-A4B-it-UD-Q5_K_XL.gguf
+    size_bytes: 21217769184
+    sha256: d7553b64566bcb0b8b7d712e12e80213f3f02e756ab17099628925ce2e39e597
+  - quant: Q6_K
+    file: gemma-4-26B-A4B-it-UD-Q6_K.gguf
+    size_bytes: 23172478688
+    sha256: 76bf3eee49cca5b076b34a4b575ecd505dabc470512b46f1207b4f9da08385f0
+  - quant: Q6_K_XL
+    file: gemma-4-26B-A4B-it-UD-Q6_K_XL.gguf
+    size_bytes: 23295391456
+    sha256: b01ee10a1423c17f9c4384f1fc569726b8782c5403557ff138ceb9468ca49d6b
+  - quant: Q8_K_XL
+    file: gemma-4-26B-A4B-it-UD-Q8_K_XL.gguf
+    size_bytes: 27636232928
+    sha256: d4bf9791d727d7b88aeea89aba309c68086a4d51cf337047c4e51dde7e243058
+- model_id: nemotron-3.5-bolt-74b-a9b
+  source: nvidia/NVIDIA-Nemotron-3.5-Bolt-74B-A9B-24GB
+  source_revision: cf2effc5c4b794ee9fb8d34eab3d1d65ce64142f
+  gguf_repo: nvidia/NVIDIA-Nemotron-3.5-Bolt-74B-A9B-24GB-GGUF
+  gguf_revision: e0fecb69cb3e5e4c5e8a056fa2aec98c78e91246
+  files:
+  - quant: 24GB
+    file: NVIDIA-Nemotron-3.5-Bolt-74B-A9B-24GB.gguf
+    size_bytes: 22018326528
+    sha256: 91d63363e782c8a3d5f4be42816eba8e0d42dd2530bd07a7d0d2dc440599af75
+- model_id: lfm2.5-24b-a2b
+  source: LiquidAI/LFM2.5-24B-A2B
+  source_revision: 3fcfdbfa1a1b6d8166846a6323e69f1e1254440d
+  gguf_repo: LiquidAI/LFM2.5-24B-A2B-GGUF
+  gguf_revision: 0912d33141f77e10705345a6732bfd83f0252fdc
+  files:
+  - quant: BF16
+    file: LFM2.5-24B-A2B-BF16.gguf
+    size_bytes: 47962094880
+    sha256: 55103fda18def5210dafac2d1f1125afc93baf604dc24cf0edf9e9aee0d576ec
+  - quant: F16
+    file: LFM2.5-24B-A2B-F16.gguf
+    size_bytes: 47962094880
+    sha256: 2afb9d00f1749bf8533dfda28d5500aaf7e4db808aaa92f541c49b61d457deb2
+  - quant: Q4_K_M
+    file: LFM2.5-24B-A2B-Q4_K_M.gguf
+    size_bytes: 14526258464
+    sha256: d3334405b96228eb9908cdebb5c6194908f2da64282bda852afc3a3910c64e7d
+  - quant: Q5_K_M
+    file: LFM2.5-24B-A2B-Q5_K_M.gguf
+    size_bytes: 17029602592
+    sha256: 7f3029ea2a8e40175496e5022cf7defdcc587df9703d3ed613e64daa51427ecb
+  - quant: Q6_K
+    file: LFM2.5-24B-A2B-Q6_K.gguf
+    size_bytes: 19689405728
+    sha256: 4c5f34cb94d4a29f0360d04eaa274bb1361ceae163f40f6361cb75d1bee139c2
+  - quant: Q8_0
+    file: LFM2.5-24B-A2B-Q8_0.gguf
+    size_bytes: 25493732640
+    sha256: f09bf094a8a138c5b645598ca1abb6696a0fde26662d7af649b0713fdef330b6
+  - quant: Q4_0
+    file: LFM2.5-24B-A2B-QAD-Q4_0.gguf
+    size_bytes: 13578190880
+    sha256: d1c03f73ecaf61017d70419eec9e5dc0b05d50ae26c23d522829b934fbabf8a5

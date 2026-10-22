@@ -7,13 +7,13 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-FIELDS = ["card_id", "run_id", "model_id", "quant", "task_pass", "prompt_tps", "generation_tps", "ttft_ms", "vram_peak_gb", "cost_usd", "flags"]
+FIELDS = ["card_id", "run_id", "model_id", "quant", "task_set_version", "fit_max_ctx", "kv_type", "n_cpu_moe", "peak_vram_gb", "peak_ram_gb", "prompt_tps_64k", "decode_tps_64k", "decode_tps_120k", "ttft_64k_ms", "strict_pass_rate", "task_wall_clock_s", "speed_cv_percent", "cost_usd", "flags"]
 RUN_ID = re.compile(r"^\d{4}-\d{2}-\d{2}_r\d{2,}$")
-NUMERIC = {"prompt_tps", "generation_tps", "ttft_ms", "vram_peak_gb", "cost_usd"}
+NUMERIC = {"fit_max_ctx", "n_cpu_moe", "peak_vram_gb", "peak_ram_gb", "prompt_tps_64k", "decode_tps_64k", "decode_tps_120k", "ttft_64k_ms", "strict_pass_rate", "task_wall_clock_s", "speed_cv_percent", "cost_usd"}
 
 
 def main():
-    failures = []
+    failures = validate_task_pack()
     runs = sorted(ROOT.glob("cards/*/runs/*"))
     for folder in runs:
         if not folder.is_dir():
@@ -43,19 +43,19 @@ def main():
                 for index, row in enumerate(reader, start=2):
                     if row.get("card_id") != card or row.get("run_id") != run_id:
                         failures.append(f"{folder}/results.csv:{index}: card_id/run_id mismatch")
-                    for key in ("model_id", "quant", "task_pass", "generation_tps", "ttft_ms", "flags"):
+                    for key in ("model_id", "quant", "task_set_version", "kv_type", "flags"):
                         if row.get(key, "") == "":
                             failures.append(f"{folder}/results.csv:{index}: missing {key}")
-                    if row.get("task_pass", "").lower() not in ("true", "false"):
-                        failures.append(f"{folder}/results.csv:{index}: task_pass must be true or false")
                     for key in NUMERIC:
                         value = row.get(key, "")
                         if value:
                             try:
-                                if float(value) < 0:
+                                parsed = float(value)
+                                if parsed < 0 or (key == "strict_pass_rate" and parsed > 1):
                                     raise ValueError()
                             except ValueError:
-                                failures.append(f"{folder}/results.csv:{index}: {key} must be nonnegative or blank")
+                                rule = "between 0 and 1" if key == "strict_pass_rate" else "nonnegative"
+                                failures.append(f"{folder}/results.csv:{index}: {key} must be {rule} or blank")
         except OSError as exc:
             failures.append(f"{folder}/results.csv: {exc}")
     if failures:
@@ -63,6 +63,31 @@ def main():
         return 1
     print(f"Validated {len(runs)} run folder(s).")
     return 0
+
+
+def validate_task_pack():
+    failures = []
+    task_path = ROOT / "harness/tasks/cuda-recipes-001-tasks.json"
+    try:
+        tasks = json.loads(task_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return [f"{task_path}: {exc}"]
+    if len(tasks) != 40:
+        failures.append(f"{task_path}: expected 40 tasks, got {len(tasks)}")
+    ids = [task.get("id") for task in tasks]
+    if len(ids) != len(set(ids)):
+        failures.append(f"{task_path}: task IDs are not unique")
+    for task in tasks:
+        attribution = task.get("attribution", {})
+        for field in ("creator", "source", "source_file", "source_commit", "license", "license_url", "third_party_sources"):
+            if field not in attribution:
+                failures.append(f"{task_path}: {task.get('id')} missing attribution.{field}")
+        if task.get("expected_calls") is not None and task.get("scorer") not in (
+            "canonical-json-equality-v1",
+            "ordered-simulated-state-transition-v1",
+        ):
+            failures.append(f"{task_path}: {task.get('id')} tool-call scorer is not the pinned strict scorer")
+    return failures
 
 
 if __name__ == "__main__":

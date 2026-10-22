@@ -1,1 +1,5 @@
-card_id,tier,pick_model_id,pick_quant,runner_up_model_id,runner_up_quant,generation_tps,ttft_ms,flags
+card_id,tier,pick_model_id,pick_quant,runner_up_model_id,runner_up_quant,strict_pass_rate,decode_tps_64k,ttft_64k_ms,flags
+rtx-3060-12gb,12gb,,,,,,,,
+rtx-3070-8gb,8gb,,,,,,,,
+rtx-3090-24gb,24gb,,,,,,,,
+rtx-4060-ti-16gb,16gb,,,,,,,,

@@ -1,1 +1,1 @@
-card_id,run_id,model_id,quant,task_pass,prompt_tps,generation_tps,ttft_ms,vram_peak_gb,cost_usd,flags
+card_id,run_id,model_id,quant,task_set_version,fit_max_ctx,kv_type,n_cpu_moe,peak_vram_gb,peak_ram_gb,prompt_tps_64k,decode_tps_64k,decode_tps_120k,ttft_64k_ms,strict_pass_rate,task_wall_clock_s,speed_cv_percent,cost_usd,flags

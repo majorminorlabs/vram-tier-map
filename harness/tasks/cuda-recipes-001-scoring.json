@@ -1,0 +1,14 @@
+{
+  "version": "2.0",
+  "primary_outcome": "binary trial success",
+  "coding": "Candidate JSON with a single Python solve function; safe AST allowlist and fixed cases; all cases must pass. Imports, attributes, unknown calls, oversized constants, loops other than finite for loops, and malformed code fail closed.",
+  "terminal_system": "The prompt requires a JSON object with a result command string. Binary success requires a task-specific, manually validated allowlisted command response; approved option ordering and quoting equivalents are accepted. All other commands fail.",
+  "structured_data": "Recursive JSON value equality with the direct requested JSON value; object key order is ignored, array order is preserved, JSON integer/decimal spellings compare as numbers, and booleans remain distinct.",
+  "other_categories": "Recursive JSON value equality with the task reference response; object key order is ignored, array order is preserved, JSON integer/decimal spellings compare as numbers, and booleans remain distinct.",
+  "tool_use": "Models receive typed tool schemas and must call the tools. The ordered call trace must exactly match the reference, every call must succeed, and final JSON must equal the expected completion response.",
+  "multi_step": "Models receive stateful simulated tools and must complete the task across tool-response turns. The full ordered action trace, state transitions, and final response must match the deterministic reference.",
+  "negative_control_rule": "Each task's listed negative response is rejected by its scorer.",
+  "malformed_rule": "Non-JSON, malformed schema, or truncated output fails.",
+  "judge": "none",
+  "frozen": true
+}
