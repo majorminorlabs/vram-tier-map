@@ -12,7 +12,7 @@ for depth in $depths; do
   attempt=1
   while (( attempt <= 3 )); do
     file="$out/bench-depth-${depth}-attempt${attempt}.json"
-    llama-bench -m "$model" "${extra[@]}" -p 512 -n 128 -d "$depth" -r "$reps" -o json > "$file"
+    "$(dirname "$0")/gpu_bench.sh" "$model" "$file" "${file%.json}.log" "${extra[@]}" -p 512 -n 128 -d "$depth" -r "$reps" -o json
     cv=$(python3 - "$file" <<'PY'
 import json,sys
 x=json.load(open(sys.argv[1])); rows=x if isinstance(x,list) else x.get('results',[])

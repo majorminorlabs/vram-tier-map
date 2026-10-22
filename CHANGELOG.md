@@ -3,6 +3,13 @@
 Not yet published. Add dated entries for methodology, schema, harness, and
 edition changes. Do not rewrite historical run records.
 
+## 2026-10-22
+
+- Clarify that the CUDA driver stub is build-stage only and define GPU evidence
+  required for smoke-gate and first Card 1 benchmark acceptance.
+- Record per-benchmark CUDA device/offload logs and concurrent `nvidia-smi`
+  memory samples; reject CPU-only or partial-layer runs.
+
 ## 2026-10-21
 
 - Methodology v1 draft now permits committing benchmark task inputs. Vendor

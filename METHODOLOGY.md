@@ -17,6 +17,22 @@ commit by GitHub Actions. Its CUDA build sets
 image is pulled by immutable digest. The digest is recorded in
 `harness/registry/runtime.yaml` and each run's `run.json`.
 
+The CUDA `libcuda.so` stub is used only in the build stage to link the CUDA
+binaries. Its build-stage `libcuda.so.1` symlink and linker search flags are not
+copied into the runtime stage. The runtime stage does not add the stub to
+`LD_LIBRARY_PATH` or the dynamic loader configuration; the NVIDIA container
+runtime supplies the real driver library to the running container.
+
+## GPU execution gate
+
+A smoke benchmark passes only when its preserved `llama-bench` log identifies
+the same CUDA device name reported by `nvidia-smi`, reports every model layer
+offloaded to the GPU with a non-zero layer count, and `nvidia-smi` samples show
+GPU memory use rising by at least 32 MiB while the benchmark runs. Exit code 0
+alone is insufficient. Apply the same evidence check to the first benchmark
+configuration on Card 1 before treating Card 1 results as valid. The harness
+preserves the benchmark log and concurrent GPU-memory samples in the run output.
+
 ## v1 policy (draft)
 
 The CUDA Recipes 001 task suite is committed under `harness/tasks/` and licensed

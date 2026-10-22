@@ -160,11 +160,13 @@ host_path=${host_id//[^A-Za-z0-9_-]/_}
 vastai copy "local:$scripts/telemetry.sh" "$id:/workspace/telemetry.sh" >/dev/null 2>&1 || { echo 'telemetry upload failed' >&2; exit 1; }
 "${ssh[@]}" "nohup bash /workspace/telemetry.sh '/workspace/output/hosts/$host_path/telemetry.csv' >'/workspace/output/hosts/$host_path/telemetry.log' 2>&1 </dev/null & echo \$! > '/workspace/output/hosts/$host_path/telemetry.pid'"
 if [[ "$mode" == smoke || "$mode" == smoke-kill ]]; then
+  vastai copy "local:$scripts/gpu_bench.sh" "$id:/workspace/gpu_bench.sh" >/dev/null 2>&1 || { echo 'GPU benchmark verifier upload failed' >&2; exit 1; }
+  "${ssh[@]}" 'chmod +x /workspace/gpu_bench.sh'
   if [[ "$mode" == smoke-kill ]]; then
     touch "$out/kill-test-running"
-    "${ssh[@]}" 'mkdir -p /workspace/output; sleep 300; curl -fL --retry 3 -o /workspace/tinyllama.gguf https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories15M-q4_0.gguf; /workspace/bin/llama-bench -m /workspace/tinyllama.gguf -p 512 -n 128 -r 1 -o json > /workspace/output/smoke-bench.json'
+    "${ssh[@]}" 'mkdir -p /workspace/output; sleep 300; curl -fL --retry 3 -o /workspace/tinyllama.gguf https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories15M-q4_0.gguf; /workspace/gpu_bench.sh /workspace/tinyllama.gguf /workspace/output/smoke-bench.json /workspace/output/smoke-bench.log -ngl 999 -p 512 -n 128 -r 1 -o json'
   else
-    "${ssh[@]}" 'mkdir -p /workspace/output; curl -fL --retry 3 -o /workspace/tinyllama.gguf https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories15M-q4_0.gguf; /workspace/bin/llama-bench -m /workspace/tinyllama.gguf -p 512 -n 128 -r 1 -o json > /workspace/output/smoke-bench.json; kill "$(cat /workspace/output/telemetry.pid)"'
+    "${ssh[@]}" 'mkdir -p /workspace/output; curl -fL --retry 3 -o /workspace/tinyllama.gguf https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories15M-q4_0.gguf; /workspace/gpu_bench.sh /workspace/tinyllama.gguf /workspace/output/smoke-bench.json /workspace/output/smoke-bench.log -ngl 999 -p 512 -n 128 -r 1 -o json; kill "$(cat /workspace/output/telemetry.pid)"'
   fi
 else
   card_id=$(python3 - "$gpu" <<'PY'
