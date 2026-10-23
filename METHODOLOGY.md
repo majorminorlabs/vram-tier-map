@@ -27,6 +27,10 @@ commit by GitHub Actions. Its CUDA build sets
 image is pulled by immutable digest. The digest is recorded in
 `harness/registry/runtime.yaml` and each run's `run.json`.
 Published image: `ghcr.io/majorminorlabs/vtm-llamacpp@sha256:432a22a393d71275c62b0aa3a1e3261e0b8b464830807e11b3df2bba114c5a90`.
+The linux/amd64 manifest has 2.230 GiB of compressed layers and an estimated
+3.631 GiB uncompressed layer total, calculated from each gzip layer's ISIZE
+trailer. The runtime stage already uses the CUDA runtime base; no image-base
+change is needed.
 
 The CUDA `libcuda.so` stub is used only in the build stage to link the CUDA
 binaries. Its build-stage `libcuda.so.1` symlink and linker search flags are not
@@ -94,3 +98,11 @@ Native PCIe specifications are versioned in `harness/registry/cards.yaml` for ea
 ## Provisioning and model storage
 
 Offer qualification uses each card's `ram_floor_gb` and `vast_price_cap_usd_per_hour` in `harness/registry/cards.yaml`, reliability >=0.97, and does not require verified status. The same RAM floor is checked against raw Vast `cpu_ram` in the offer response; Vast reports this field in MB. Before each model/quant/configuration, estimate VRAM fit as the smaller of GGUF size and currently free GPU memory, then require free host RAM >= max(0, GGUF size - VRAM fit) + 8 GiB. If not, log `skipped: host RAM` and continue to the next configuration. Each result row records host total RAM, raw instance `cpu_ram`, free RAM at load, and host verification status; `run.json` records verification status per host. Before a card rental, run the offer funnel for that card only. Zero eligible offers stops that card before rental. One eligible host is allowed; record host replication as `unavailable` in `run.json`. The harness downloads and evaluates one model at a time, removes that model's GGUF before moving to the next, and records free disk before each download. It aborts before a download if available space is less than the GGUF size plus 10 GiB. Failed create responses are retried on the next eligible offer up to three offers, after label/orphan cleanup; every create response and stderr are stored privately after token redaction. The private per-session spend ledger is checked against the $6 session ceiling before a rental, with smoke runs capped at 30 minutes and card runs at the six-hour hard limit.
+
+Instance startup is polled every 20 seconds. The private log records `actual_status`,
+`status_msg`, and any image-pull progress. Eight minutes without a status or pull
+progress update is a host startup stall; progressing pulls may continue for up to
+25 minutes. A startup-stalled machine is destroyed, confirmed absent, excluded with
+its reason in private notes, and retried within the shared three-host limit. Among
+otherwise eligible offers, prefer `inet_down >= 200 Mbps` when its hourly price is
+within $0.02 of the cheapest eligible offer.

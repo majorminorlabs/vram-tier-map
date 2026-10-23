@@ -2,6 +2,12 @@
 
 ## 2026-10-23
 
+- Startup now polls every 20 seconds, logs state/message/pull progress privately,
+  marks eight-minute stalls as host failures, and permits image pulls up to 25
+  minutes. Failed startup hosts are excluded and retried within the shared
+  three-host limit. Near-price offers prefer `inet_down>=200` when within $0.02/h.
+- Pinned image layers measure 2.230 GiB compressed and an estimated 3.631 GiB
+  uncompressed; the existing CUDA runtime stage is already slim.
 - Methodology v1.1 sets per-card CPU RAM floors and price caps, makes host
   verification informational, and enforces a per-configuration free-RAM
   requirement with an 8 GiB reserve. Result rows and run metadata include host

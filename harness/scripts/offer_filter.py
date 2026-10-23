@@ -38,8 +38,15 @@ def filter_offers(raw, cap, requested_gpu, cards, skipped=(), failed=(), smoke=F
         valid.append({**offer, '_vtm_disk_gb': disk_gb, '_vtm_ram_floor_gb': ram_floor_gb, '_vtm_verified_status': verified_status(offer), '_vtm_native_pcie_gen': card['native_pcie_gen'], '_vtm_native_pcie_width': card['native_pcie_width'], '_vtm_expected_gpu_name':card.get('preflight_gpu_name',gpu)})
     if not valid:
         return None
-    valid.sort(key=lambda x: (float(x.get('dph_total', x.get('dph', 1e9))), -float(x.get('reliability', 0))))
-    return valid[0]
+    cheapest = min(float(x.get('dph_total', x.get('dph', 1e9))) for x in valid)
+    near_price_fast = [x for x in valid
+                       if float(x.get('dph_total', x.get('dph', 1e9))) <= cheapest + .02
+                       and float(x.get('inet_down', 0) or 0) >= 200]
+    pool = near_price_fast or valid
+    pool.sort(key=lambda x: (float(x.get('dph_total', x.get('dph', 1e9))),
+                             -float(x.get('inet_down', 0) or 0),
+                             -float(x.get('reliability', 0))))
+    return pool[0]
 
 if __name__ == '__main__':
     cap, requested_gpu, registry_path, skip_path, failed_path = sys.argv[1:]

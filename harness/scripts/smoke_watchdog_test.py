@@ -25,7 +25,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--output", required=True)
     ap.add_argument("--run-id", required=True)
-    ap.add_argument("--startup-timeout", type=int, default=900)
+    ap.add_argument("--startup-timeout", type=int, default=1800)
     ap.add_argument("--kill-delay", type=int, default=15)
     ap.add_argument("--cleanup-timeout", type=int, default=120)
     args = ap.parse_args()

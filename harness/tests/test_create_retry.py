@@ -98,6 +98,11 @@ def test_disk_filter():
     ram16_offer={**x8_offer,'cpu_ram':16000,'verified':False}
     assert filter_offers([ram16_offer],.35,'any',ram16_card)['id']==2
     assert filter_offers([{**ram16_offer,'dph_total':.21}],.20,'any',ram16_card) is None
+    cheapest={**ram16_offer,'id':11,'dph_total':.10,'inet_down':120}
+    fast_nearby={**ram16_offer,'id':12,'dph_total':.12,'inet_down':250}
+    assert filter_offers([cheapest,fast_nearby],.35,'any',ram16_card)['id']==12
+    too_expensive_fast={**fast_nearby,'id':13,'dph_total':.121}
+    assert filter_offers([cheapest,too_expensive_fast],.35,'any',ram16_card)['id']==11
     print('offer_disk_filter: passed')
 
 def test_per_config_ram_requirement():

@@ -105,7 +105,7 @@ cleanup() {
   return "$rc"
 }
 trap cleanup EXIT INT TERM
-startup_deadline=$(( $(date +%s) + 900 ))
+startup_deadline=$(( $(date +%s) + 1500 ))
 provision=$(python3 "$scripts/create_retry.py" "$run_id" "$label" "$image" "$cap" "$gpu" "$mode" "$repo/harness/registry/cards.yaml" "$private" "$failed") || {
   echo "create retry exhausted or provisioning failed; diagnostics: $private/create-responses/${run_id}.stderr.txt" >&2
   exit 1
@@ -166,13 +166,36 @@ printf '%s\n' "$id" > "$out/instance-id.txt"
 printf '%s\n' "$label" > "$out/label.txt"
 printf 'run_id=%s\ninstance_id=%s\nlabel=%s\nmachine_id=%s\noffer_id=%s\nhourly_usd=%s\ncreate_attempt=%s\ndisk_gb=%s\n' "$run_id" "$id" "$label" "$host" "$offer_id" "$hourly" "$create_attempt" "$disk_gb" > "$private/${run_id}-instance.txt"
 echo "created/adopted run=$run_id instance=$id gpu=$offer_gpu hourly=$hourly"
-status=''
-while (( $(date +%s) < startup_deadline )); do
-  status=$(vastai show instance "$id" --raw 2>/dev/null | python3 -c 'import json,sys; r=json.load(sys.stdin); r=r[0] if isinstance(r,list) else r; print(r.get("actual_status",r.get("status","")))' 2>/dev/null || true)
-  [[ "$status" == running ]] && break
-  sleep 10
-done
-[[ "${status:-}" == running ]] || { echo 'instance startup timed out' >&2; exit 1; }
+startup_log="$private/startup/${run_id}-${id}.jsonl"
+mkdir -p "$private/startup"
+startup_rc=0
+startup_reason=$(python3 "$scripts/startup_monitor.py" "$id" "$startup_log") || startup_rc=$?
+if (( startup_rc == 42 )); then
+  printf 'host_id=%s machine_id=%s reason=startup stall detail=%s\n' "$host_id" "$host" "$startup_reason" >> "$private/failed-host-reasons.tsv"
+  if [[ -n "$host" ]]; then printf '%s\n' "$host" >> "$failed"; sort -u "$failed" -o "$failed"; fi
+  echo "startup host failure; reason=$startup_reason machine_id=$host; destroying and advancing" >&2
+  "$scripts/teardown.sh" "$id" "$label" "$state" >> "$state/teardown.log" 2>&1 || exit 1
+  if [[ -f "$state/active-instance-meta.json" ]]; then
+    read -r meta_run meta_id meta_hourly meta_started meta_ledger < <(python3 -c 'import json,sys; x=json.load(open(sys.argv[1])); print(x["run_id"],x["instance_id"],x["hourly"],x["started_epoch"],x["ledger"])' "$state/active-instance-meta.json")
+    python3 "$scripts/record_spend.py" "$meta_run" "$meta_id" "$meta_hourly" "$meta_started" "$meta_ledger" >> "$state/spend.log" 2>&1
+    rm -f "$state/active-instance-meta.json"
+  fi
+  rejected=${VTM_REJECTED_COUNT:-0}
+  if (( rejected < 2 )); then
+    id=''
+    touch "$state/main.done"
+    wait "$wd" 2>/dev/null || true
+    rm -f "$state/main.done" "$state/active-instance-id.txt"
+    exec env VTM_REJECTED_COUNT="$((rejected + 1))" "$0" "$mode" "$gpu" "$cap" "$out" "$run_id"
+  fi
+  echo 'ERROR: three hosts failed startup/preflight; attempt aborted' >&2
+  exit 1
+elif (( startup_rc != 0 )); then
+  echo "startup monitor failed (exit $startup_rc): $startup_reason" >&2
+  exit "$startup_rc"
+fi
+echo "instance startup ready; status log=$startup_log"
+startup_deadline=$(( $(date +%s) + 900 ))
 if ! vastai attach ssh "$id" "$ssh_key.pub" >/dev/null 2>&1; then
   echo 'failed to attach the selected local SSH public key to the instance' >&2
   exit 1
@@ -265,6 +288,7 @@ if (( preflight_rc != 0 )); then
   if [[ "${VTM_REJECTED_COUNT:-0}" -lt 2 ]]; then
     printf '%s\n' "$host" >> "$failed"
     sort -u "$failed" -o "$failed"
+    printf 'host_id=%s machine_id=%s reason=preflight rejection\n' "$host_id" "$host" >> "$private/failed-host-reasons.tsv"
     echo "host rejected by preflight; destroying and advancing to next offer ($(( ${VTM_REJECTED_COUNT:-0} + 1 ))/3): machine_id=$host" >&2
     "$scripts/teardown.sh" "$id" "$label" "$state" >> "$state/teardown.log" 2>&1
     if [[ -f "$state/active-instance-meta.json" ]]; then
