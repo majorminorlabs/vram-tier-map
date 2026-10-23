@@ -348,13 +348,13 @@ upload_file "$scripts/telemetry.sh" /workspace/telemetry.sh true
 if [[ "$mode" == smoke || "$mode" == smoke-kill ]]; then
   upload_file "$scripts/gpu_bench.sh" /workspace/gpu_bench.sh true
   if [[ "$mode" == smoke-kill ]]; then
-    "${ssh[@]}" 'mkdir -p /workspace/output; sleep 300; curl -fL --retry 3 -o /workspace/tinyllama.gguf https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories15M-q4_0.gguf; /workspace/gpu_bench.sh /workspace/tinyllama.gguf /workspace/output/smoke-bench.json /workspace/output/smoke-bench.log -ngl 999 -p 512 -n 128 -r 1 -o json' &
+    "${ssh[@]}" 'mkdir -p /workspace/output; sleep 300; curl -fL --retry 3 -o /workspace/tinyllama.gguf https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories15M-q4_0.gguf; /workspace/gpu_bench.sh /workspace/tinyllama.gguf /workspace/output/smoke-bench.json /workspace/output/smoke-bench.log -ngl 999 -p 512 -n 128 -r 1 -o json -v' &
     smoke_pid=$!
     touch "$out/kill-test-running"
     wait "$smoke_pid"
   else
     bench_rc=0
-    "${ssh[@]}" "set +e; mkdir -p /workspace/output; curl -fL --retry 3 -o /workspace/tinyllama.gguf https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories15M-q4_0.gguf; fetch_rc=\$?; if (( fetch_rc == 0 )); then /workspace/gpu_bench.sh /workspace/tinyllama.gguf /workspace/output/smoke-bench.json /workspace/output/smoke-bench.log -ngl 999 -p 512 -n 128 -r 1 -o json; bench_rc=\$?; else bench_rc=\$fetch_rc; fi; kill \"\$(cat '/workspace/output/hosts/$host_path/telemetry.pid')\" 2>/dev/null; exit \$bench_rc" || bench_rc=$?
+    "${ssh[@]}" "set +e; mkdir -p /workspace/output; curl -fL --retry 3 -o /workspace/tinyllama.gguf https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories15M-q4_0.gguf; fetch_rc=\$?; if (( fetch_rc == 0 )); then /workspace/gpu_bench.sh /workspace/tinyllama.gguf /workspace/output/smoke-bench.json /workspace/output/smoke-bench.log -ngl 999 -p 512 -n 128 -r 1 -o json -v; bench_rc=\$?; else bench_rc=\$fetch_rc; fi; kill \"\$(cat '/workspace/output/hosts/$host_path/telemetry.pid')\" 2>/dev/null; exit \$bench_rc" || bench_rc=$?
     if (( bench_rc != 0 )); then
       mkdir -p "$out/results"
       if scp "${scp_opts[@]}" -r "root@$ssh_host:/workspace/output/." "$out/results/"; then pulled=1; fi
