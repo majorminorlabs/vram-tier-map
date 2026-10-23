@@ -31,8 +31,11 @@ def unwrap(raw):
 
 def status_fields(raw):
     item = unwrap(raw)
-    status = item.get("actual_status", item.get("status", "unknown"))
-    message = item.get("status_msg", item.get("status_message", ""))
+    # Vast's show-instance response has used `cur_state` while leaving the
+    # display-oriented actual_status/status_msg fields null. Prefer the
+    # explicit actual status, then fall back to the API state field.
+    status = item.get("actual_status") or item.get("status") or item.get("cur_state") or "unknown"
+    message = item.get("status_msg") or item.get("status_message") or ""
     progress_values = []
 
     def visit(value, path=""):

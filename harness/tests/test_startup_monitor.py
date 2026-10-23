@@ -68,6 +68,15 @@ def test_running_success():
         )
         assert (code, reason) == (0, "running")
 
+def test_vast_cur_state_fallback():
+    clock = FakeClock()
+    payload={"actual_status":None,"status_msg":None,"cur_state":"running","intended_status":"running"}
+    assert status_fields(payload) == ("running", "", "")
+    with tempfile.TemporaryDirectory() as td:
+        code, reason = monitor_startup("123",Path(td)/"cur-state.jsonl",fetch=lambda _:payload,
+            sleep=clock.sleep,clock=clock.now)
+        assert (code, reason) == (0,"running")
+
 def test_status_message_layer_progress_is_recognized():
     first=status_fields({"actual_status":"loading","status_msg":"abc123abc123: Downloading 10 MB"})
     second=status_fields({"actual_status":"loading","status_msg":"abc123abc123: Download complete"})
@@ -76,5 +85,5 @@ def test_status_message_layer_progress_is_recognized():
 
 
 if __name__ == "__main__":
-    test_stall(); test_rolling_status_message_does_not_hide_stall(); test_slow_pull(); test_running_success(); test_status_message_layer_progress_is_recognized()
-    print("startup_monitor_stall_slow_pull_success: 5 cases passed")
+    test_stall(); test_rolling_status_message_does_not_hide_stall(); test_slow_pull(); test_running_success(); test_vast_cur_state_fallback(); test_status_message_layer_progress_is_recognized()
+    print("startup_monitor_stall_slow_pull_success: 6 cases passed")
