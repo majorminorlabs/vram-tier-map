@@ -43,6 +43,8 @@ if [[ "$mode" == smoke || "$mode" == smoke-kill ]]; then
   max_runtime_seconds=1800
   deadline=$(( $(date +%s) + max_runtime_seconds ))
 fi
+host_retry_limit=3
+[[ "$mode" != card ]] || host_retry_limit=5
 "$scripts/destroy_label.sh" "$label" "$private/pre-create-cleanup.log"
 "$scripts/cleanup_orphans.sh" "$label" "$private/pre-create-cleanup.log"
 failed="$private/failed-host-ids.txt"
@@ -181,14 +183,14 @@ if (( startup_rc == 42 )); then
     rm -f "$state/active-instance-meta.json"
   fi
   rejected=${VTM_REJECTED_COUNT:-0}
-  if (( rejected < 4 )); then
+  if (( rejected + 1 < host_retry_limit )); then
     id=''
     touch "$state/main.done"
     wait "$wd" 2>/dev/null || true
     rm -f "$state/main.done" "$state/active-instance-id.txt"
     exec env VTM_REJECTED_COUNT="$((rejected + 1))" "$0" "$mode" "$gpu" "$cap" "$out" "$run_id"
   fi
-  echo 'ERROR: five hosts failed startup/preflight; attempt aborted' >&2
+  echo "ERROR: $host_retry_limit hosts failed startup/preflight; attempt aborted" >&2
   exit 1
 elif (( startup_rc != 0 )); then
   echo "startup monitor failed (exit $startup_rc): $startup_reason" >&2
@@ -294,11 +296,11 @@ if (( preflight_rc != 0 )); then
     mkdir -p "$private/rejected-hosts/$run_id/$host_path"
     "${ssh[@]}" "tar -C '/workspace/output/hosts/$host_path' -cf - ." 2>/dev/null | tar -C "$private/rejected-hosts/$run_id/$host_path" -xf - || true
   fi
-  if [[ "${VTM_REJECTED_COUNT:-0}" -lt 4 ]]; then
+  if (( ${VTM_REJECTED_COUNT:-0} + 1 < host_retry_limit )); then
     printf '%s\n' "$host" >> "$failed"
     sort -u "$failed" -o "$failed"
     printf 'host_id=%s machine_id=%s reason=preflight rejection\n' "$host_id" "$host" >> "$private/failed-host-reasons.tsv"
-    echo "host rejected by preflight; destroying and advancing to next offer ($(( ${VTM_REJECTED_COUNT:-0} + 1 ))/5): machine_id=$host" >&2
+    echo "host rejected by preflight; destroying and advancing to next offer ($(( ${VTM_REJECTED_COUNT:-0} + 1 ))/$host_retry_limit): machine_id=$host" >&2
     "$scripts/teardown.sh" "$id" "$label" "$state" >> "$state/teardown.log" 2>&1
     if [[ -f "$state/active-instance-meta.json" ]]; then
       read -r meta_run meta_id meta_hourly meta_started meta_ledger < <(python3 -c 'import json,sys; x=json.load(open(sys.argv[1])); print(x["run_id"],x["instance_id"],x["hourly"],x["started_epoch"],x["ledger"])' "$state/active-instance-meta.json")
@@ -312,7 +314,7 @@ if (( preflight_rc != 0 )); then
     exec env VTM_REJECTED_COUNT="$(( ${VTM_REJECTED_COUNT:-0} + 1 ))" "$0" "$mode" "$gpu" "$cap" "$out" "$run_id"
   fi
   printf '%s\n' "$host" >> "$failed"
-  echo "ERROR: 5 hosts rejected by preflight; attempt aborted" >&2
+  echo "ERROR: $host_retry_limit hosts rejected by preflight; attempt aborted" >&2
   exit 1
 fi
 upload_file "$scripts/telemetry.sh" /workspace/telemetry.sh true
