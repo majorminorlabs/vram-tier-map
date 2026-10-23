@@ -302,10 +302,29 @@ if (( preflight_rc != 0 )); then
     mkdir -p "$private/rejected-hosts/$run_id/$host_path"
     "${ssh[@]}" "tar -C '/workspace/output/hosts/$host_path' -cf - ." 2>/dev/null | tar -C "$private/rejected-hosts/$run_id/$host_path" -xf - || true
   fi
+  cuda_state="$private/cuda-init-streak-${run_id}.json"
+  if [[ "$mode" == card ]]; then
+    cuda_preflight_log=$(find "$private/rejected-hosts/$run_id/$host_path" -maxdepth 1 -type f -name 'pcie-transfer-*.log' -print 2>/dev/null | sort | tail -1)
+    streak_json=''
+    if [[ -n "$cuda_preflight_log" ]] && streak_json=$(python3 "$scripts/cuda_init_streak.py" "$cuda_state" "$cuda_preflight_log" 2>/dev/null); then
+      cuda_error=$(python3 -c 'import json,sys;print(json.loads(sys.argv[1])["error"])' "$streak_json")
+      streak_count=$(python3 -c 'import json,sys;print(json.loads(sys.argv[1])["consecutive_count"])' "$streak_json")
+      if (( streak_count >= 2 )); then
+        echo "STOP: two consecutive card hosts failed CUDA initialization with the same error: $cuda_error" >&2
+        exit 1
+      fi
+      preflight_reason="CUDA initialization failed: $cuda_error"
+    else
+      rm -f "$cuda_state"
+      preflight_reason='preflight rejection'
+    fi
+  else
+    preflight_reason='preflight rejection'
+  fi
   if (( ${VTM_REJECTED_COUNT:-0} + 1 < host_retry_limit )); then
     printf '%s\n' "$host" >> "$failed"
     sort -u "$failed" -o "$failed"
-    printf 'host_id=%s machine_id=%s reason=preflight rejection\n' "$host_id" "$host" >> "$private/failed-host-reasons.tsv"
+    printf 'host_id=%s machine_id=%s reason=%s\n' "$host_id" "$host" "$preflight_reason" >> "$private/failed-host-reasons.tsv"
     echo "host rejected by preflight; destroying and advancing to next offer ($(( ${VTM_REJECTED_COUNT:-0} + 1 ))/$host_retry_limit): machine_id=$host" >&2
     "$scripts/teardown.sh" "$id" "$label" "$state" >> "$state/teardown.log" 2>&1
     if [[ -f "$state/active-instance-meta.json" ]]; then
@@ -323,6 +342,7 @@ if (( preflight_rc != 0 )); then
   echo "ERROR: $host_retry_limit hosts rejected by preflight; attempt aborted" >&2
   exit 1
 fi
+rm -f "$private/cuda-init-streak-${run_id}.json"
 upload_file "$scripts/telemetry.sh" /workspace/telemetry.sh true
 "${ssh[@]}" "nohup bash /workspace/telemetry.sh '/workspace/output/hosts/$host_path/telemetry.csv' >'/workspace/output/hosts/$host_path/telemetry.log' 2>&1 </dev/null & echo \$! > '/workspace/output/hosts/$host_path/telemetry.pid'"
 if [[ "$mode" == smoke || "$mode" == smoke-kill ]]; then
