@@ -1,38 +1,206 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "VRAM Tier Map results.csv columns",
-  "schema_version": "1.3",
+  "schema_version": "1.4",
   "format": "CSV",
   "columns": [
-    {"name":"card_id","type":"string","required":true},
-    {"name":"run_id","type":"string","required":true,"pattern":"YYYY-MM-DD_rNN"},
-    {"name":"model_id","type":"string","required":true},
-    {"name":"quant","type":"string","required":true},
-    {"name":"task_set_version","type":"string","required":true},
-    {"name":"fit_max_ctx","type":"integer|null","required":true,"minimum":0},
-    {"name":"kv_type","type":"string","required":true},
-    {"name":"n_cpu_moe","type":"integer|null","required":true,"minimum":0},
-    {"name":"peak_vram_gb","type":"number|null","required":true,"minimum":0},
-    {"name":"peak_ram_gb","type":"number|null","required":true,"minimum":0},
-    {"name":"prompt_tps_64k","type":"number|null","required":true,"minimum":0},
-    {"name":"decode_tps_64k","type":"number|null","required":true,"minimum":0},
-    {"name":"decode_tps_120k","type":"number|null","required":true,"minimum":0},
-    {"name":"ttft_64k_ms","type":"number|null","required":true,"minimum":0},
-    {"name":"strict_pass_rate","type":"number|null","required":true,"minimum":0,"maximum":1},
-    {"name":"task_wall_clock_s","type":"number|null","required":true,"minimum":0},
-    {"name":"speed_cv_percent","type":"number|null","required":true,"minimum":0},
-    {"name":"cost_usd","type":"number|null","required":true,"minimum":0},
-    {"name":"pcie_gen_actual","type":"integer|null","required":true,"minimum":0},
-    {"name":"pcie_width_actual","type":"integer|null","required":true,"minimum":0},
-    {"name":"pcie_gen_idle","type":"integer|null","required":true,"minimum":0},
-    {"name":"pcie_gen_max","type":"integer|null","required":true,"minimum":0},
-    {"name":"pcie_gen_hostmax","type":"integer|null","required":true,"minimum":0},
-    {"name":"pcie_width_idle","type":"integer|null","required":true,"minimum":0},
-    {"name":"pcie_width_max","type":"integer|null","required":true,"minimum":0},
-    {"name":"host_ram_total_gb","type":"number|null","required":true,"minimum":0},
-    {"name":"instance_cpu_ram","type":"number|null","required":true,"minimum":0},
-    {"name":"free_ram_at_load_gb","type":"number|null","required":true,"minimum":0},
-    {"name":"verified_status","type":"string","required":true},
-    {"name":"flags","type":"string","required":true}
+    {
+      "name": "card_id",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "run_id",
+      "type": "string",
+      "required": true,
+      "pattern": "YYYY-MM-DD_rNN"
+    },
+    {
+      "name": "model_id",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "quant",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "task_set_version",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "fit_max_ctx",
+      "type": "integer|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "kv_type",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "n_cpu_moe",
+      "type": "integer|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "peak_vram_gb",
+      "type": "number|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "peak_ram_gb",
+      "type": "number|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "prompt_tps_64k",
+      "type": "number|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "decode_tps_64k",
+      "type": "number|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "decode_tps_120k",
+      "type": "number|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "ttft_64k_ms",
+      "type": "number|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "strict_pass_rate",
+      "type": "number|null",
+      "required": true,
+      "minimum": 0,
+      "maximum": 1
+    },
+    {
+      "name": "task_wall_clock_s",
+      "type": "number|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "speed_cv_percent",
+      "type": "number|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "cost_usd",
+      "type": "number|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "pcie_gen_actual",
+      "type": "integer|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "pcie_width_actual",
+      "type": "integer|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "pcie_gen_idle",
+      "type": "integer|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "pcie_gen_max",
+      "type": "integer|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "pcie_gen_hostmax",
+      "type": "integer|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "pcie_width_idle",
+      "type": "integer|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "pcie_width_max",
+      "type": "integer|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "pcie_width_hostmax",
+      "type": "integer|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "power_limit_w",
+      "type": "number|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "power_default_limit_w",
+      "type": "number|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "pcie_h2d_gbps",
+      "type": "number|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "host_ram_total_gb",
+      "type": "number|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "instance_cpu_ram",
+      "type": "number|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "free_ram_at_load_gb",
+      "type": "number|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "verified_status",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "flags",
+      "type": "string",
+      "required": true
+    }
   ]
 }

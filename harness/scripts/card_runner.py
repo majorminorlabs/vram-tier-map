@@ -41,6 +41,29 @@ def stop_server(p):
         try: p._log_file.close()
         except Exception: pass
 
+def verify_first_config_cuda(server, log_path, baseline_mib):
+    """Require the first runnable Card 1 configuration to prove CUDA layer offload."""
+    name=subprocess.check_output(['nvidia-smi','--query-gpu=name','--format=csv,noheader'],text=True).splitlines()[0].strip()
+    short=name.removeprefix('NVIDIA GeForce ').removeprefix('NVIDIA ').removeprefix('GeForce ')
+    deadline=time.monotonic()+20
+    evidence=None; peak=baseline_mib
+    while time.monotonic()<deadline:
+        try:
+            server._log_file.flush()
+            log=Path(log_path).read_text(errors='replace')
+        except Exception: log=''
+        matches=re.findall(r'offloaded\s+(\d+)\s*/\s*(\d+)\s+layers?\s+to GPU',log,re.I)
+        if matches:
+            evidence=tuple(map(int,matches[-1]))
+        try:
+            values=subprocess.check_output(['nvidia-smi','--query-gpu=memory.used','--format=csv,noheader,nounits'],text=True).splitlines()
+            peak=max(peak,float(values[0].strip()))
+        except Exception: pass
+        if evidence and (name in log or short in log) and evidence[0]==evidence[1] and evidence[0]>0 and peak>=baseline_mib+32:
+            return {'gpu_name':name,'offloaded_layers':evidence[0],'total_layers':evidence[1],'baseline_memory_mib':baseline_mib,'peak_memory_mib':peak}
+        time.sleep(.25)
+    raise RuntimeError(f'first Card 1 configuration lacks CUDA evidence: gpu={name}; layer_offload={evidence}; memory_mib={baseline_mib}->{peak}')
+
 def dump_repo(target_tokens=65536):
     files=[]
     allowed={'.c','.h','.cc','.cpp','.hpp','.md','.py','.cmake','.txt','.sh'}
@@ -146,8 +169,12 @@ def fit(model, f, run_id, args):
         ram=host_ram_preflight(model,f,ctx,kv,ncpu,args); last_ram=ram
         if ram['result']!='pass': continue
         log=OUT/'logs'/f"fit-{model['model_id']}-{f['quant']}-ctx{ctx}-kv{kv}-cpu{ncpu}.log"; log.parent.mkdir(parents=True,exist_ok=True)
+        baseline_mib=float(subprocess.check_output(['nvidia-smi','--query-gpu=memory.used','--format=csv,noheader,nounits'],text=True).splitlines()[0].strip())
         p=start_server(path,ctx,kv,ncpu,log)
         if p:
+            if not (OUT/'first-config-cuda-evidence.json').exists():
+                evidence=verify_first_config_cuda(p,log,baseline_mib)
+                (OUT/'first-config-cuda-evidence.json').write_text(json.dumps(evidence,indent=2)+'\n')
             peak=measure_peak(); stop_server(p)
             server_flags=['-m',str(path),'-c',str(ctx),'-ngl','999','--cache-type-k',kv,'--cache-type-v',kv]
             if ncpu: server_flags += ['--n-cpu-moe',str(ncpu)]
@@ -235,14 +262,17 @@ def main():
     with (OUT/'hosts'/args.host_id/'gpu-preflight.csv').open(newline='') as pf:
         pcie_rows=list(csv.DictReader(pf))
     idle_pcie=next(r for r in pcie_rows if r['phase']=='idle')
-    load_pcie=[r for r in pcie_rows if r['phase']=='load']
+    load_pcie=[r for r in pcie_rows if r['phase']=='transfer']
     def pcie_int(value):
         try: return int(value)
         except (TypeError,ValueError): return ''
     native_width=next(c['native_pcie_width'] for c in yaml.safe_load((ROOT/'registry/cards.yaml').read_text())['cards'] if c['card_id']==args.card_id)
-    qualified=next(r for r in load_pcie if pcie_int(r['pcie_gen_current'])!='' and pcie_int(r['pcie_gen_current'])>=3 and pcie_int(r['pcie_width_current'])==native_width)
-    pcie_gen=pcie_int(qualified['pcie_gen_current']); pcie_width=pcie_int(qualified['pcie_width_current'])
-    pcie_context={'pcie_gen_actual':pcie_gen,'pcie_width_actual':pcie_width,'pcie_gen_idle':pcie_int(idle_pcie['pcie_gen_current']),'pcie_gen_max':max([pcie_int(r['pcie_gen_max']) for r in pcie_rows if pcie_int(r['pcie_gen_max'])!=''],default=''),'pcie_gen_hostmax':max([pcie_int(r['pcie_gen_hostmax']) for r in pcie_rows if pcie_int(r['pcie_gen_hostmax'])!=''],default=''),'pcie_width_idle':pcie_int(idle_pcie['pcie_width_current']),'pcie_width_max':max([pcie_int(r['pcie_width_max']) for r in pcie_rows if pcie_int(r['pcie_width_max'])!=''],default='')}
+    qualified=load_pcie[0] if load_pcie else {}
+    pcie_gen=pcie_int(qualified.get('pcie_gen_current','')); pcie_width=pcie_int(qualified.get('pcie_width_current',''))
+    host_dir=OUT/'hosts'/args.host_id
+    quality=json.loads((host_dir/'host-quality.json').read_text())
+    transfer=json.loads((host_dir/'pcie-transfer.json').read_text())
+    pcie_context={'pcie_gen_actual':pcie_gen,'pcie_width_actual':pcie_width,'pcie_gen_idle':pcie_int(idle_pcie['pcie_gen_current']),'pcie_gen_max':max([pcie_int(r['pcie_gen_max']) for r in pcie_rows if pcie_int(r['pcie_gen_max'])!=''],default=''),'pcie_gen_hostmax':max([pcie_int(r['pcie_gen_hostmax']) for r in pcie_rows if pcie_int(r['pcie_gen_hostmax'])!=''],default=''),'pcie_width_idle':pcie_int(idle_pcie['pcie_width_current']),'pcie_width_max':max([pcie_int(r['pcie_width_max']) for r in pcie_rows if pcie_int(r['pcie_width_max'])!=''],default=''),'pcie_width_hostmax':max([pcie_int(r['pcie_width_hostmax']) for r in pcie_rows if pcie_int(r['pcie_width_hostmax'])!=''],default=''),'power_limit_w':quality.get('power_limit_w'),'power_default_limit_w':quality.get('power_default_limit_w'),'pcie_h2d_gbps':transfer.get('measured_h2d_gbps')}
     for model in registry['models']:
         row=run_model(model,args); rows.append(row)
         flags=list(row.get('flags',[]))
@@ -251,7 +281,7 @@ def main():
         result={'card_id':args.card_id,'run_id':args.run_id,'model_id':row['model_id'],'quant':row.get('quant','not-fit'),'task_set_version':'cuda-recipes-001-v1','fit_max_ctx':row.get('fit_max_ctx',''),'kv_type':row.get('kv_type','none'),'n_cpu_moe':row.get('n_cpu_moe',''),'peak_vram_gb':row.get('peak_vram_gb',''),'peak_ram_gb':row.get('peak_ram_gb',''),'prompt_tps_64k':row.get('prompt_tps_64k',''),'decode_tps_64k':row.get('decode_tps_64k',''),'decode_tps_120k':row.get('decode_tps_120k',''),'ttft_64k_ms':row.get('ttft_64k_ms',''),'strict_pass_rate':row.get('strict_pass_rate',''),'task_wall_clock_s':row.get('task_wall_clock_s',''),'speed_cv_percent':row.get('speed_cv_percent',''),'cost_usd':'',**pcie_context,'host_ram_total_gb':ram.get('host_ram_total_gib',''),'instance_cpu_ram':args.instance_cpu_ram,'free_ram_at_load_gb':ram.get('free_ram_at_load_gib',''),'verified_status':args.verified_status,'flags':';'.join(flags) or ('fit_failed' if row.get('fit')=='failed' else 'none')}
         p=OUT/'results.csv'
         import csv
-        fields=['card_id','run_id','model_id','quant','task_set_version','fit_max_ctx','kv_type','n_cpu_moe','peak_vram_gb','peak_ram_gb','prompt_tps_64k','decode_tps_64k','decode_tps_120k','ttft_64k_ms','strict_pass_rate','task_wall_clock_s','speed_cv_percent','cost_usd','pcie_gen_actual','pcie_width_actual','pcie_gen_idle','pcie_gen_max','pcie_gen_hostmax','pcie_width_idle','pcie_width_max','host_ram_total_gb','instance_cpu_ram','free_ram_at_load_gb','verified_status','flags']
+        fields=['card_id','run_id','model_id','quant','task_set_version','fit_max_ctx','kv_type','n_cpu_moe','peak_vram_gb','peak_ram_gb','prompt_tps_64k','decode_tps_64k','decode_tps_120k','ttft_64k_ms','strict_pass_rate','task_wall_clock_s','speed_cv_percent','cost_usd','pcie_gen_actual','pcie_width_actual','pcie_gen_idle','pcie_gen_max','pcie_gen_hostmax','pcie_width_idle','pcie_width_max','pcie_width_hostmax','power_limit_w','power_default_limit_w','pcie_h2d_gbps','host_ram_total_gb','instance_cpu_ram','free_ram_at_load_gb','verified_status','flags']
         with p.open('a',newline='') as f:
             w=csv.DictWriter(f,fieldnames=fields)
             if p.stat().st_size==0:w.writeheader()

@@ -93,16 +93,37 @@ Document any model-specific prompt limits or truncation in the result flags.
 
 ## PCIe host qualification
 
-Native PCIe specifications are versioned in `harness/registry/cards.yaml` for each card. Offer filtering uses Vast CLI offer fields `pci_gen` and `pcie_bw`: require generation 3 or newer and treat measured `pcie_bw` as a coarse floor of 8 for native x16 cards or 6 for native x8 cards. The Vast CLI exposes these fields in `search offers` results (see the [official CLI source](https://github.com/vast-ai/vast-cli/blob/master/vast.py)). `pcie_bw` is a marketplace measurement rather than a guaranteed theoretical link rate, so on-host preflight is authoritative. It records idle current generation/width, maximum generation/width, host maximum generation when the driver exposes it, and repeated current generation/width samples during a 10-second CUDA `llama-bench` load. Idle links may downshift for power saving and do not determine acceptance. The slot must advertise a maximum generation of at least 3 (including host maximum when available); at least one under-load sample must show generation 3 or newer and width equal to the card's native width. Every result row records the idle, maximum, and qualified under-load values. A Gen 3 link on a Gen 4 card is flagged in result rows and run metadata; it remains eligible if it meets the width and minimum-generation rules. Smoke rentals use only GPUs listed in `harness/registry/cards.yaml` and have a $0.30/h cap.
+Native PCIe specifications are versioned in `harness/registry/cards.yaml` for each card. Offer filtering uses Vast CLI offer fields `pci_gen` and `pcie_bw`: require generation 3 or newer and treat measured `pcie_bw` as a coarse floor of 8 for native x16 cards or 6 for native x8 cards. The Vast CLI exposes these fields in `search offers` results (see the [official CLI source](https://github.com/vast-ai/vast-cli/blob/master/vast.py)). `pcie_bw` is a marketplace measurement rather than a guaranteed theoretical link rate, so the card-run H2D transfer check is authoritative. It records the actual model load bytes and duration, UTC sample times, PCIe generation and width values, GPU utilization, and P-state while a pinned approximately 2.02 GB GGUF is loaded by llama-bench with `-ngl 99 -mmp 0`. Pass requires H2D >= 6 GB/s for native x16 cards or >= 5 GB/s for native x8 cards, with `width.max` and available `width.hostmax` equal to native width. PCIe generation under compute-only load does not determine eligibility. Smoke-mode PCIe, power, and RAM observations are warning-only. Card runs also require `power.limit >= 90%` of `power.default_limit`; both watt values and measured H2D GB/s are recorded in every result row.
 
 ## Provisioning and model storage
 
-Offer qualification uses each card's `ram_floor_gb` and `vast_price_cap_usd_per_hour` in `harness/registry/cards.yaml`, reliability >=0.97, and does not require verified status. The same RAM floor is checked against raw Vast `cpu_ram` in the offer response; Vast reports this field in MB. Before each model/quant/configuration, estimate VRAM fit as the smaller of GGUF size and currently free GPU memory, then require free host RAM >= max(0, GGUF size - VRAM fit) + 8 GiB. If not, log `skipped: host RAM` and continue to the next configuration. Each result row records host total RAM, raw instance `cpu_ram`, free RAM at load, and host verification status; `run.json` records verification status per host. Before a card rental, run the offer funnel for that card only. Zero eligible offers stops that card before rental. One eligible host is allowed; record host replication as `unavailable` in `run.json`. The harness downloads and evaluates one model at a time, removes that model's GGUF before moving to the next, and records free disk before each download. It aborts before a download if available space is less than the GGUF size plus 10 GiB. Failed create responses are retried on the next eligible offer up to three offers, after label/orphan cleanup; every create response and stderr are stored privately after token redaction. The private per-session spend ledger is checked against the $6 session ceiling before a rental, with smoke runs capped at 30 minutes and card runs at the six-hour hard limit.
+Offer qualification uses each card's `ram_floor_gb` and `vast_price_cap_usd_per_hour` in `harness/registry/cards.yaml`, reliability >=0.97, and does not require verified status. The same RAM floor is checked against raw Vast `cpu_ram` in the offer response; Vast reports this field in MB. Before each model/quant/configuration, estimate VRAM fit as the smaller of GGUF size and currently free GPU memory, then require free host RAM >= max(0, GGUF size - VRAM fit) + 8 GiB. If not, log `skipped: host RAM` and continue to the next configuration. Each result row records host total RAM, raw instance `cpu_ram`, free RAM at load, and host verification status; `run.json` records verification status per host. Before a card rental, run the offer funnel for that card only. Zero eligible offers stops that card before rental. One eligible host is allowed; record host replication as `unavailable` in `run.json`. The harness downloads and evaluates one model at a time, removes that model's GGUF before moving to the next, and records free disk before each download. It aborts before a download if available space is less than the GGUF size plus 10 GiB. Failed create responses are retried on the next eligible offer up to three offers per host attempt, after label/orphan cleanup; every create response and stderr are stored privately after token redaction. The private per-session spend ledger is checked against the $6 session ceiling before a rental, with smoke runs capped at 30 minutes and card runs at the six-hour hard limit.
 
 Instance startup is polled every 20 seconds. The private log records `actual_status`,
 `status_msg`, and any image-pull progress. Eight minutes without a status or pull
 progress update is a host startup stall; progressing pulls may continue for up to
 25 minutes. A startup-stalled machine is destroyed, confirmed absent, excluded with
-its reason in private notes, and retried within the shared three-host limit. Among
+its reason in private notes, and retried within the shared five-host limit. Among
 otherwise eligible offers, prefer `inet_down >= 200 Mbps` when its hourly price is
 within $0.02 of the cheapest eligible offer.
+
+## v1.2 (2026-10-23): smoke quality policy and PCIe traffic
+
+Smoke mode treats PCIe, power-limit, and host-RAM checks as warn-only and logs the
+observations. Its hard gates remain successful creation and transition to `running`, CUDA
+offload evidence from the smoke benchmark, pulled results, normal teardown with zero
+instances, and the independent watchdog destroying a SIGKILLed run within two minutes
+with zero instances. Startup stalls and dead hosts are host failures; exclude them and
+advance to another offer.
+
+For card runs, the current power limit passes when it is at least 90% of the default power
+limit. Record both watt values in every result row.
+
+Card PCIe qualification measures host-to-device bandwidth by loading the pinned
+approximately 2.02 GB preflight GGUF with `llama-bench -ngl 99 -mmp 0`. Record bytes,
+load time, UTC sample timestamps, GPU utilization, P-state, current/max/host PCIe link
+values, and measured H2D GB/s. Pass requires at least 6 GB/s for native x16 cards or
+5 GB/s for the native x8 RTX 4060 Ti; `width.max` and available `width.hostmax` must match
+native width. Every card result row records measured H2D GB/s and both power limits.
+PCIe generation under compute-only load is not an acceptance criterion. Card runs can
+reject up to five hosts; smoke host-quality warnings do not fail the smoke gate.

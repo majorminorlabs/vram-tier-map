@@ -126,6 +126,8 @@ def test_smoke_requires_registered_gpu():
     registered=[{'gpu_name':'RTX 3060','disk_gb':100,'native_pcie_gen':4,'native_pcie_width':16}]
     registered_offer={**offer,'gpu_name':'RTX 3060'}
     assert filter_offers([registered_offer],.15,'any',registered,smoke=True)['id']==3
+    smoke_ignores_quality={**registered_offer,'cpu_ram':8000,'pci_gen':1,'pcie_bw':1}
+    assert filter_offers([smoke_ignores_quality],.15,'any',registered,smoke=True)['id']==3
     print('smoke_registry_only: passed')
 
 if __name__=='__main__':

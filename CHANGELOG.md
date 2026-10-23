@@ -2,6 +2,14 @@
 
 ## 2026-10-23
 
+- Methodology v1.2 makes smoke PCIe, power, and RAM observations warn-only while retaining
+  its lifecycle, CUDA offload, result-pull, teardown, and kill-9 watchdog gates.
+- Card power acceptance is `power.limit >= 90% * power.default_limit`; both watt values
+  are included in result rows.
+- Replaced compute-only PCIe acceptance with measured host-to-device loading bandwidth
+  (6 GB/s x16, 5 GB/s x8), native-width capability checks, and timestamped utilization,
+  P-state, power, and PCIe samples. Card attempts may reject up to five hosts.
+
 - Startup now polls every 20 seconds, logs state/message/pull progress privately,
   marks eight-minute stalls as host failures, and permits image pulls up to 25
   minutes. Failed startup hosts are excluded and retried within the shared

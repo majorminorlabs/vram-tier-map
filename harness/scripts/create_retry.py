@@ -26,7 +26,9 @@ for attempt in range(1, 4):
     # The CLI query uses the lowest coarse pcie_bw floor for mixed smoke
     # searches; filter_offers applies the native-width-specific floor per card.
     pcie_bw_floor = 6 if gpu == 'any' else (8 if int(next(c['native_pcie_width'] for c in registry if c['gpu_name'] == gpu)) == 16 else 6)
-    query = f'external=false num_gpus=1 cpu_ram>={min_ram} reliability>=0.97 rentable=true dph<={cap} pci_gen>=3 pcie_bw>={pcie_bw_floor} disk_space>={min_disk}'
+    smoke = mode in ('smoke','smoke-kill')
+    quality_filter = '' if smoke else f' cpu_ram>={min_ram} pci_gen>=3 pcie_bw>={pcie_bw_floor}'
+    query = f'external=false num_gpus=1 reliability>=0.97 rentable=true dph<={cap}{quality_filter} disk_space>={min_disk}'
     if gpu != 'any': query += f' gpu_name={gpu.replace(" ", "_")}'
     if failed: query += ' machine_id notin [' + ','.join(sorted(failed)) + ']'
     if skipped: query += ' id notin [' + ','.join(sorted(skipped)) + ']'

@@ -13,7 +13,7 @@ memory_log="${log_out%.log}-gpu-memory.csv"
 baseline=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits | head -1 | tr -d ' ')
 [[ "$baseline" =~ ^[0-9]+$ ]] || { echo 'nvidia-smi did not report baseline GPU memory' >&2; exit 1; }
 printf 'timestamp,gpu_name,memory_used_mib\n' > "$memory_log"
-"$bench" -m "$model" "$@" > "$json_out" 2> "$log_out" &
+LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}/workspace/llama.cpp/build/bin" "$bench" -m "$model" "$@" > "$json_out" 2> "$log_out" &
 bench_pid=$!
 while kill -0 "$bench_pid" 2>/dev/null; do
   value=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d ' ' || true)
