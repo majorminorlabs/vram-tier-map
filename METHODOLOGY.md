@@ -5,6 +5,16 @@
 - **v1 (draft):** Initial policy for reproducible, comparable local inference
   measurements. Runtime commit pinned to `84e66d03218711dfcaa993e5f64a546abe82df9a`.
   Benchmark task inputs are committed as public data as of first publish.
+- **v1.1:** Offer qualification uses the per-card CPU RAM floors and price
+  caps in `harness/registry/cards.yaml`: RTX 3090 32 GB/$0.40 per hour, RTX
+  3060 16 GB/$0.20, RTX 4060 Ti 16 GB/$0.35, and RTX 3070 16 GB/$0.20.
+  RAM floors reflect typical owner systems; the per-config check decides fit.
+  Reliability must be >=0.97; verified status is recorded but not required.
+  Disk and native-width-specific PCIe bandwidth floors remain in force. Before each model/quant
+  configuration, require free host RAM >= max(0, GGUF size - estimated VRAM
+  fit) + 8 GiB; otherwise record `skipped: host RAM` and continue. Record host
+  total RAM, the offer's raw `cpu_ram`, and free RAM at load in every result row.
+  Record each host's verification status in run metadata and each result row.
 
 ## Pinned runtime image
 
@@ -83,4 +93,4 @@ Native PCIe specifications are versioned in `harness/registry/cards.yaml` for ea
 
 ## Provisioning and model storage
 
-Offer qualification requires at least the card's `disk_gb` in `harness/registry/cards.yaml`; the same requirement is sent to Vast's offer search and checked against each returned offer. The harness downloads and evaluates one model at a time, removes that model's GGUF before moving to the next, and records free disk before each download. It aborts before a download if available space is less than the GGUF size plus 10 GiB. Failed create responses are retried on the next eligible offer up to three offers, after label/orphan cleanup; every create response and stderr are stored privately after token redaction. The private per-session spend ledger is checked against the $6 session ceiling before a rental, with smoke runs capped at 30 minutes and card runs at the six-hour hard limit.
+Offer qualification uses each card's `ram_floor_gb` and `vast_price_cap_usd_per_hour` in `harness/registry/cards.yaml`, reliability >=0.97, and does not require verified status. The same RAM floor is checked against raw Vast `cpu_ram` in the offer response; Vast reports this field in MB. Before each model/quant/configuration, estimate VRAM fit as the smaller of GGUF size and currently free GPU memory, then require free host RAM >= max(0, GGUF size - VRAM fit) + 8 GiB. If not, log `skipped: host RAM` and continue to the next configuration. Each result row records host total RAM, raw instance `cpu_ram`, free RAM at load, and host verification status; `run.json` records verification status per host. Before a card rental, run the offer funnel for that card only. Zero eligible offers stops that card before rental. One eligible host is allowed; record host replication as `unavailable` in `run.json`. The harness downloads and evaluates one model at a time, removes that model's GGUF before moving to the next, and records free disk before each download. It aborts before a download if available space is less than the GGUF size plus 10 GiB. Failed create responses are retried on the next eligible offer up to three offers, after label/orphan cleanup; every create response and stderr are stored privately after token redaction. The private per-session spend ledger is checked against the $6 session ceiling before a rental, with smoke runs capped at 30 minutes and card runs at the six-hour hard limit.

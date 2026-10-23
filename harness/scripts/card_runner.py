@@ -104,13 +104,47 @@ def measure_peak():
     except Exception: ram=0
     return vram,ram
 
-def fit(model, f, run_id):
+def memory_available_gib():
+    mem={}
+    for line in Path('/proc/meminfo').read_text().splitlines():
+        k,v=line.split(':',1); mem[k]=int(v.strip().split()[0])
+    return mem['MemTotal']/1048576,mem['MemAvailable']/1048576
+
+def gpu_free_gib():
+    value=subprocess.check_output(['nvidia-smi','--query-gpu=memory.free','--format=csv,noheader,nounits'],text=True).splitlines()[0]
+    return float(value.strip())/1024
+
+def ram_requirement(gguf_gib, gpu_free_gib):
+    vram_fit=min(gguf_gib,gpu_free_gib)
+    offloaded=max(0.0,gguf_gib-vram_fit)
+    return vram_fit,offloaded,offloaded+8.0
+
+def host_ram_preflight(model,f,ctx,kv,ncpu,args):
+    total,free=memory_available_gib()
+    gpu_free=gpu_free_gib()
+    gguf_gib=int(f['size_bytes'])/(1024**3)
+    vram_fit,offloaded,required=ram_requirement(gguf_gib,gpu_free)
+    passed=free>=required
+    result={'model_id':model['model_id'],'quant':f['quant'],'ctx':ctx,'kv_type':kv,'n_cpu_moe':ncpu,'gguf_size_gib':round(gguf_gib,4),'vram_fit_gib':round(vram_fit,4),'offloaded_size_gib':round(offloaded,4),'required_free_ram_gib':round(required,4),'host_ram_total_gib':round(total,4),'instance_cpu_ram':args.instance_cpu_ram,'free_ram_at_load_gib':round(free,4),'verified_status':args.verified_status,'result':'pass' if passed else 'skipped: host RAM'}
+    log=OUT/'logs'/'host-ram-preflight.csv'; log.parent.mkdir(parents=True,exist_ok=True)
+    fields=['model_id','quant','ctx','kv_type','n_cpu_moe','gguf_size_gib','vram_fit_gib','offloaded_size_gib','required_free_ram_gib','host_ram_total_gib','instance_cpu_ram','free_ram_at_load_gib','verified_status','result']
+    with log.open('a',newline='') as stream:
+        writer=csv.DictWriter(stream,fieldnames=fields)
+        if log.stat().st_size==0: writer.writeheader()
+        writer.writerow(result)
+    print(f"RAM preflight {model['model_id']}/{f['quant']} ctx={ctx}: free={free:.2f} GiB required={required:.2f} GiB offloaded={offloaded:.2f} GiB result={result['result']}",flush=True)
+    return result
+
+def fit(model, f, run_id, args):
     path=download(model,f)
     plans=[(131072,'f16',0)] + [(131072,'q8_0',0)]
     if 'MOE' in model['model_id'].upper() or 'A2B' in model['model_id'].upper() or 'A3B' in model['model_id'].upper() or 'A4B' in model['model_id'].upper() or 'A9B' in model['model_id'].upper():
         plans += [(131072,'q8_0',n) for n in (1,2,4,8)]
     plans += [(65536,'q8_0',0)]
+    last_ram=None
     for ctx,kv,ncpu in plans:
+        ram=host_ram_preflight(model,f,ctx,kv,ncpu,args); last_ram=ram
+        if ram['result']!='pass': continue
         log=OUT/'logs'/f"fit-{model['model_id']}-{f['quant']}-ctx{ctx}-kv{kv}-cpu{ncpu}.log"; log.parent.mkdir(parents=True,exist_ok=True)
         p=start_server(path,ctx,kv,ncpu,log)
         if p:
@@ -120,9 +154,9 @@ def fit(model, f, run_id):
             config={'model_id':model['model_id'],'quant':f['quant'],'file':f['file'],'sha256':f['sha256'],'ctx':ctx,'kv':kv,'n_cpu_moe':ncpu,'n_gpu_layers':999,'server_flags':server_flags,'bench_flags':['-m',str(path),'-ngl','999','-ctk',kv,'-ctv',kv,'-p','512','-n','128','-d','65536|122880','-r','5'],'path':str(path)}
             cdir=OUT/'configs'; cdir.mkdir(parents=True,exist_ok=True)
             (cdir/f"{model['model_id']}-{f['quant']}.json").write_text(json.dumps(config,indent=2)+'\n')
-            return config,peak
+            return config,peak,ram
     path.unlink(missing_ok=True)
-    return None,(0,0)
+    return None,(0,0),last_ram
 
 def run_model(model, args):
     telemetry_path=OUT/'hosts'/args.host_id/'telemetry.csv'
@@ -131,12 +165,15 @@ def run_model(model, args):
         with telemetry_path.open(newline='') as f: telemetry_start=sum(1 for _ in csv.DictReader(f))
     except Exception: telemetry_start=0
     files=sorted(model['files'],key=lambda f:QUALITY.get(f['quant'],0),reverse=True)
-    picked=None; peak=(0,0)
+    picked=None; peak=(0,0); selected_ram=None; skipped_ram=0
     for f in files:
-        picked,peak=fit(model,f,args.run_id)
+        picked,peak,ram=fit(model,f,args.run_id,args)
+        if ram and ram.get('result')=='skipped: host RAM': skipped_ram+=1
+        if ram: selected_ram=ram
         if picked: break
     if not picked:
-        return {'model_id':model['model_id'],'fit':'failed','flags':['does_not_fit']}
+        status='skipped: host RAM' if skipped_ram else 'failed'
+        return {'model_id':model['model_id'],'fit':status,'flags':[status if skipped_ram else 'does_not_fit'],'ram':selected_ram or {}}
     path=Path(picked['path']); logdir=OUT/'logs'; logdir.mkdir(parents=True,exist_ok=True)
     config_path=OUT/'configs'/f"{model['model_id']}-{picked['quant']}.json"
     bench_dir=OUT/'bench'/model['model_id']/picked['quant']; bench_dir.mkdir(parents=True,exist_ok=True)
@@ -146,7 +183,7 @@ def run_model(model, args):
     if picked['n_cpu_moe']: bench_extra += ['--n-cpu-moe',str(picked['n_cpu_moe'])]
     subprocess.run([str(ROOT/'scripts/bench.sh'),str(path),str(bench_dir),'5',*bench_extra],check=True,env=env)
     p=start_server(path,picked['ctx'],picked['kv'],picked['n_cpu_moe'],logdir/f"serve-{model['model_id']}.log")
-    if not p: return {'model_id':model['model_id'],'quant':picked['quant'],'fit':'pass','benchmark':'failed','flags':['server_restart_failed']}
+    if not p: return {'model_id':model['model_id'],'quant':picked['quant'],'fit':'pass','benchmark':'failed','flags':['server_restart_failed'],'ram':selected_ram}
     try:
         target_tokens=min(65536,max(56000,picked['ctx']-4096))
         task_prefix,context_tokens=dump_repo(target_tokens)
@@ -182,13 +219,13 @@ def run_model(model, args):
                 except Exception: pass
                 try: ram=max(ram,float(row['host_ram_used_gib']))
                 except Exception: pass
-    result={'model_id':model['model_id'],'quant':picked['quant'],'fit':'pass','fit_max_ctx':picked['ctx'],'kv_type':picked['kv'],'n_cpu_moe':picked['n_cpu_moe'],'peak_vram_gb':round(vram,3),'peak_ram_gb':round(ram,3),'prompt_tps_64k':p64,'decode_tps_64k':d64,'decode_tps_120k':d120,'ttft_64k_ms':round(ttft_ms,2),'strict_pass_rate':tasks['strict_pass_rate'],'task_wall_clock_s':tasks['wall_clock_s'],'speed_cv_percent':max(cv) if cv else 0,'flags':['q4_kv'] if picked['kv']=='q4_0' else []}
+    result={'model_id':model['model_id'],'quant':picked['quant'],'fit':'pass','fit_max_ctx':picked['ctx'],'kv_type':picked['kv'],'n_cpu_moe':picked['n_cpu_moe'],'peak_vram_gb':round(vram,3),'peak_ram_gb':round(ram,3),'prompt_tps_64k':p64,'decode_tps_64k':d64,'decode_tps_120k':d120,'ttft_64k_ms':round(ttft_ms,2),'strict_pass_rate':tasks['strict_pass_rate'],'task_wall_clock_s':tasks['wall_clock_s'],'speed_cv_percent':max(cv) if cv else 0,'flags':['q4_kv'] if picked['kv']=='q4_0' else [],'ram':selected_ram}
     (OUT/'configs'/f"{model['model_id']}-{picked['quant']}.json").write_text(json.dumps({**picked,'ttft_64k_ms':result['ttft_64k_ms']},indent=2)+'\n')
     del path
     return result
 
 def main():
-    ap=argparse.ArgumentParser(); ap.add_argument('--card-id',required=True); ap.add_argument('--run-id',required=True); ap.add_argument('--host-id',required=True); ap.add_argument('--mode',default='full')
+    ap=argparse.ArgumentParser(); ap.add_argument('--card-id',required=True); ap.add_argument('--run-id',required=True); ap.add_argument('--host-id',required=True); ap.add_argument('--instance-cpu-ram',required=True); ap.add_argument('--verified-status',required=True); ap.add_argument('--mode',default='full')
     args=ap.parse_args(); OUT.mkdir(parents=True,exist_ok=True)
     for folder in ('configs','hosts','logs','tasks','bench'): (OUT/folder).mkdir(parents=True,exist_ok=True)
     (OUT/'hosts'/args.host_id).mkdir(parents=True,exist_ok=True)
@@ -210,10 +247,11 @@ def main():
         row=run_model(model,args); rows.append(row)
         flags=list(row.get('flags',[]))
         if pcie_gen == 3 and args.card_id in ('rtx-3090-24gb','rtx-4060-ti-16gb','rtx-3060-12gb','rtx-3070-8gb'): flags.append('pcie_gen3_on_gen4_card')
-        result={'card_id':args.card_id,'run_id':args.run_id,'model_id':row['model_id'],'quant':row.get('quant','not-fit'),'task_set_version':'cuda-recipes-001-v1','fit_max_ctx':row.get('fit_max_ctx',''),'kv_type':row.get('kv_type','none'),'n_cpu_moe':row.get('n_cpu_moe',''),'peak_vram_gb':row.get('peak_vram_gb',''),'peak_ram_gb':row.get('peak_ram_gb',''),'prompt_tps_64k':row.get('prompt_tps_64k',''),'decode_tps_64k':row.get('decode_tps_64k',''),'decode_tps_120k':row.get('decode_tps_120k',''),'ttft_64k_ms':row.get('ttft_64k_ms',''),'strict_pass_rate':row.get('strict_pass_rate',''),'task_wall_clock_s':row.get('task_wall_clock_s',''),'speed_cv_percent':row.get('speed_cv_percent',''),'cost_usd':'',**pcie_context,'flags':';'.join(flags) or ('fit_failed' if row.get('fit')=='failed' else 'none')}
+        ram=row.get('ram') or {}
+        result={'card_id':args.card_id,'run_id':args.run_id,'model_id':row['model_id'],'quant':row.get('quant','not-fit'),'task_set_version':'cuda-recipes-001-v1','fit_max_ctx':row.get('fit_max_ctx',''),'kv_type':row.get('kv_type','none'),'n_cpu_moe':row.get('n_cpu_moe',''),'peak_vram_gb':row.get('peak_vram_gb',''),'peak_ram_gb':row.get('peak_ram_gb',''),'prompt_tps_64k':row.get('prompt_tps_64k',''),'decode_tps_64k':row.get('decode_tps_64k',''),'decode_tps_120k':row.get('decode_tps_120k',''),'ttft_64k_ms':row.get('ttft_64k_ms',''),'strict_pass_rate':row.get('strict_pass_rate',''),'task_wall_clock_s':row.get('task_wall_clock_s',''),'speed_cv_percent':row.get('speed_cv_percent',''),'cost_usd':'',**pcie_context,'host_ram_total_gb':ram.get('host_ram_total_gib',''),'instance_cpu_ram':args.instance_cpu_ram,'free_ram_at_load_gb':ram.get('free_ram_at_load_gib',''),'verified_status':args.verified_status,'flags':';'.join(flags) or ('fit_failed' if row.get('fit')=='failed' else 'none')}
         p=OUT/'results.csv'
         import csv
-        fields=['card_id','run_id','model_id','quant','task_set_version','fit_max_ctx','kv_type','n_cpu_moe','peak_vram_gb','peak_ram_gb','prompt_tps_64k','decode_tps_64k','decode_tps_120k','ttft_64k_ms','strict_pass_rate','task_wall_clock_s','speed_cv_percent','cost_usd','pcie_gen_actual','pcie_width_actual','pcie_gen_idle','pcie_gen_max','pcie_gen_hostmax','pcie_width_idle','pcie_width_max','flags']
+        fields=['card_id','run_id','model_id','quant','task_set_version','fit_max_ctx','kv_type','n_cpu_moe','peak_vram_gb','peak_ram_gb','prompt_tps_64k','decode_tps_64k','decode_tps_120k','ttft_64k_ms','strict_pass_rate','task_wall_clock_s','speed_cv_percent','cost_usd','pcie_gen_actual','pcie_width_actual','pcie_gen_idle','pcie_gen_max','pcie_gen_hostmax','pcie_width_idle','pcie_width_max','host_ram_total_gb','instance_cpu_ram','free_ram_at_load_gb','verified_status','flags']
         with p.open('a',newline='') as f:
             w=csv.DictWriter(f,fieldnames=fields)
             if p.stat().st_size==0:w.writeheader()

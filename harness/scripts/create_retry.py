@@ -9,6 +9,7 @@ run_id, label, image, cap, gpu, mode, registry_path, private, failed_path = sys.
 private = Path(private); diagnostics = private / 'create-responses'; diagnostics.mkdir(parents=True, exist_ok=True)
 registry = yaml.safe_load(Path(registry_path).read_text())['cards']
 min_disk = min(int(c['disk_gb']) for c in registry) if gpu == 'any' else int(next(c['disk_gb'] for c in registry if c['gpu_name'] == gpu))
+min_ram = min(int(c.get('ram_floor_gb',32)) for c in registry) if gpu == 'any' else int(next(c.get('ram_floor_gb',32) for c in registry if c['gpu_name'] == gpu))
 skip_path = diagnostics / f'{run_id}.skip-offers'
 skip_path.touch(exist_ok=True)
 skipped = set(skip_path.read_text().split())
@@ -25,11 +26,11 @@ for attempt in range(1, 4):
     # The CLI query uses the lowest coarse pcie_bw floor for mixed smoke
     # searches; filter_offers applies the native-width-specific floor per card.
     pcie_bw_floor = 6 if gpu == 'any' else (8 if int(next(c['native_pcie_width'] for c in registry if c['gpu_name'] == gpu)) == 16 else 6)
-    query = f'num_gpus=1 cpu_ram>=64 reliability>=0.97 verified=true rentable=true dph<={cap} pci_gen>=3 pcie_bw>={pcie_bw_floor} disk_space>={min_disk}'
+    query = f'external=false num_gpus=1 cpu_ram>={min_ram} reliability>=0.97 rentable=true dph<={cap} pci_gen>=3 pcie_bw>={pcie_bw_floor} disk_space>={min_disk}'
     if gpu != 'any': query += f' gpu_name={gpu.replace(" ", "_")}'
     if failed: query += ' machine_id notin [' + ','.join(sorted(failed)) + ']'
     if skipped: query += ' id notin [' + ','.join(sorted(skipped)) + ']'
-    p = subprocess.run(['vastai','search','offers','--raw','--limit','100','--order','dph_total',query],capture_output=True,text=True)
+    p = subprocess.run(['vastai','search','offers','--raw','--no-default','--limit','100','--order','dph_total',query],capture_output=True,text=True)
     if p.returncode:
         errors.append('offer search failed (Vast CLI exit '+str(p.returncode)+')')
         break

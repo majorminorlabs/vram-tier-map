@@ -4,11 +4,22 @@ mode=${1:?usage: vast_run.sh smoke|smoke-kill|card GPU_NAME HOURLY_CAP OUTPUT_DI
 gpu=${2:?GPU_NAME}
 cap=${3:?HOURLY_CAP}
 out=${4:?OUTPUT_DIR}
-if [[ "$mode" == smoke || "$mode" == smoke-kill ]]; then cap=0.30; fi
 repo=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$repo"
 scripts="$repo/harness/scripts"
 private="$repo/../_private/vram-tier-map"
+if [[ "$mode" == smoke || "$mode" == smoke-kill ]]; then
+  cap=0.30
+elif [[ "$mode" == card ]]; then
+  cap=$(python3 - "$gpu" <<'PY'
+import json,sys
+cards=json.load(open('harness/registry/cards.yaml'))['cards']
+c=next((x for x in cards if x['gpu_name']==sys.argv[1]),None)
+if not c: raise SystemExit('GPU is absent from card registry')
+print(c['vast_price_cap_usd_per_hour'])
+PY
+)
+fi
 mkdir -p "$out" "$private/create-responses" "$private/watchdogs"
 if [[ "$mode" == card && -n "$(find "$out" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
   echo 'refusing to overwrite an existing committed or partial run directory; use a new run_id' >&2
@@ -37,6 +48,27 @@ fi
 failed="$private/failed-host-ids.txt"
 skip_offers="$private/create-responses/${run_id}.skip-offers"
 touch "$skip_offers"
+host_replication='not_applicable'
+eligible_host_count=0
+if [[ "$mode" == card ]]; then
+  card_id=$(python3 - "$gpu" <<'PY'
+import json,sys
+cards=json.load(open('harness/registry/cards.yaml'))['cards']
+c=next((x for x in cards if x['gpu_name']==sys.argv[1]),None)
+if not c: raise SystemExit('GPU is absent from card registry')
+print(c['card_id'])
+PY
+)
+  funnel=$(python3 "$scripts/offer_funnel.py" "$gpu" "$cap" "$repo/harness/registry/cards.yaml" "$private" "$failed" "$run_id") || exit $?
+  eligible_host_count=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["eligible_host_count"])' "$funnel")
+  host_replication=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["host_replication"])' "$funnel")
+  eligible_offers=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["eligible_offer_count"])' "$funnel")
+  if (( eligible_offers == 0 )); then
+    report=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["report_path"])' "$funnel")
+    echo "card funnel has zero eligible offers; stopping before rental; report=$report" >&2
+    exit 3
+  fi
+fi
 image=$(python3 - harness/registry/runtime.yaml <<'PY'
 import sys,yaml
 cfg=yaml.safe_load(open(sys.argv[1]))
@@ -91,6 +123,8 @@ pcie_width=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["_vtm_na
 native_gen=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["_vtm_native_pcie_gen"])' "$offer")
 host_id=$(python3 -c 'import json,sys; x=json.loads(sys.argv[1]); print(x.get("host_id",x.get("machine_id","")))' "$offer")
 hourly=$(python3 -c 'import json,sys; x=json.loads(sys.argv[1]); print(x.get("dph_total",x.get("dph")))' "$offer")
+instance_cpu_ram=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("cpu_ram",""))' "$offer")
+verified_status=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("_vtm_verified_status","unknown"))' "$offer")
 id="$returned_id"
 printf '%s\n' "$id" > "$state/active-instance-id.txt"
 python3 - "$state/active-instance-meta.json" "$run_id" "$id" "$hourly" "$session_ledger" "$created_epoch" <<'PY'
@@ -270,7 +304,7 @@ print(card)
 PY
 )
   upload_tree "$repo/harness" /workspace/harness
-  "${ssh[@]}" "PATH=/workspace/bin:\$PATH python3 /workspace/harness/scripts/card_runner.py --card-id '$card_id' --run-id '$run_id' --host-id '$host_path' --mode full"
+  "${ssh[@]}" "PATH=/workspace/bin:\$PATH python3 /workspace/harness/scripts/card_runner.py --card-id '$card_id' --run-id '$run_id' --host-id '$host_path' --instance-cpu-ram '$instance_cpu_ram' --verified-status '$verified_status' --mode full"
   "${ssh[@]}" "if test -f '/workspace/output/hosts/$host_path/telemetry.pid'; then kill \$(cat '/workspace/output/hosts/$host_path/telemetry.pid') 2>/dev/null || true; fi"
 fi
 copy_dest="$out"
@@ -281,9 +315,9 @@ pulled=1
 if [[ "$mode" == card ]]; then
   end_epoch=$(date +%s); end_utc=$(date -u +%FT%TZ); runtime=$((end_epoch-started_epoch))
   instance_state=$(vastai show instance "$id" --raw 2>/dev/null || true)
-python3 - "$out" "$run_id" "$card_id" "$id" "$label" "$host_id" "$host" "$hourly" "$runtime" "$started_utc" "$end_utc" "$instance_state" "$host_path" <<'PY'
+python3 - "$out" "$run_id" "$card_id" "$id" "$label" "$host_id" "$host" "$hourly" "$runtime" "$started_utc" "$end_utc" "$instance_state" "$host_path" "$instance_cpu_ram" "$verified_status" "$host_replication" "$eligible_host_count" <<'PY'
 import csv,json,sys,yaml,pathlib,subprocess
-out,run_id,card_id,instance_id,label,host_id,machine_id,hourly,runtime,start,end,raw,host_path=sys.argv[1:]
+out,run_id,card_id,instance_id,label,host_id,machine_id,hourly,runtime,start,end,raw,host_path,instance_cpu_ram,verified_status,host_replication,eligible_host_count=sys.argv[1:]
 cfg=yaml.safe_load(open('harness/registry/runtime.yaml'))
 digest=cfg['image_digest']; image=cfg['image'].split(':',1)[0]+'@'+digest
 try:
@@ -306,7 +340,7 @@ native_card=next(c for c in cards if c['card_id']==card_id)
 under=next(r for r in loads if iv(r['pcie_gen_current']) is not None and iv(r['pcie_gen_current'])>=3 and iv(r['pcie_width_current'])==native_card['native_pcie_width'])
 pcie_gen=iv(under['pcie_gen_current']); pcie_width=iv(under['pcie_width_current'])
 pcie_context={'pcie_gen_actual':pcie_gen,'pcie_width_actual':pcie_width,'pcie_gen_idle':iv(idle['pcie_gen_current']),'pcie_gen_max':max((iv(r['pcie_gen_max']) for r in pcie if iv(r['pcie_gen_max']) is not None),default=None),'pcie_gen_hostmax':max((iv(r['pcie_gen_hostmax']) for r in pcie if iv(r['pcie_gen_hostmax']) is not None),default=None),'pcie_width_idle':iv(idle['pcie_width_current']),'pcie_width_max':max((iv(r['pcie_width_max']) for r in pcie if iv(r['pcie_width_max']) is not None),default=None)}
-meta={'card_id':card_id,'run_id':run_id,'tier':tier,'llama_cpp_commit':cfg['llama_cpp_commit'],'image_digest':digest,'image':image,'harness_git_sha':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'schema_version':'1.2','methodology_version':'v1','hosts_used':[{'host_id':host_id,'machine_id':machine_id,**pcie_context,'pcie_native_gen':native_card['native_pcie_gen'],'pcie_native_width':native_card['native_pcie_width'],'pcie_gen3_on_gen4_card':pcie_gen==3 and native_card['native_pcie_gen']==4}],'wall_clock':{'start_utc':start,'end_utc':end,'seconds':int(runtime)},'instances':[{'instance_id':instance_id,'label':label,'host_id':host_id,'machine_id':machine_id,'hourly_rate_usd':float(hourly),'actual_cost_usd':round(actual,6),'cost_source':source}],'cost_usd':round(actual,6)}
+meta={'card_id':card_id,'run_id':run_id,'tier':tier,'llama_cpp_commit':cfg['llama_cpp_commit'],'image_digest':digest,'image':image,'harness_git_sha':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'schema_version':'1.3','methodology_version':'v1.1','host_replication':{'status':host_replication,'eligible_host_count':int(eligible_host_count)},'hosts_used':[{'host_id':host_id,'machine_id':machine_id,'instance_cpu_ram':instance_cpu_ram,'verified_status':verified_status,**pcie_context,'pcie_native_gen':native_card['native_pcie_gen'],'pcie_native_width':native_card['native_pcie_width'],'pcie_gen3_on_gen4_card':pcie_gen==3 and native_card['native_pcie_gen']==4}],'wall_clock':{'start_utc':start,'end_utc':end,'seconds':int(runtime)},'instances':[{'instance_id':instance_id,'label':label,'host_id':host_id,'machine_id':machine_id,'hourly_rate_usd':float(hourly),'actual_cost_usd':round(actual,6),'cost_source':source}],'cost_usd':round(actual,6)}
 pathlib.Path(out,'run.json').write_text(json.dumps(meta,indent=2)+'\n')
 print('run metadata saved; cost source='+source)
 PY

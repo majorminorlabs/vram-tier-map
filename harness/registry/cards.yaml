@@ -1,8 +1,8 @@
 {
   "cards": [
-    {"card_id":"rtx-3090-24gb","gpu_name":"RTX 3090","vram_gb":24,"tier":"24gb","native_pcie_gen":4,"native_pcie_width":16,"disk_gb":150,"vast_price_cap_usd_per_hour":0.40},
-    {"card_id":"rtx-4060-ti-16gb","gpu_name":"RTX 4060 Ti","vram_gb":16,"tier":"16gb","native_pcie_gen":4,"native_pcie_width":8,"disk_gb":100,"vast_price_cap_usd_per_hour":0.25},
-    {"card_id":"rtx-3060-12gb","gpu_name":"RTX 3060","vram_gb":12,"tier":"12gb","native_pcie_gen":4,"native_pcie_width":16,"disk_gb":100,"vast_price_cap_usd_per_hour":0.20},
-    {"card_id":"rtx-3070-8gb","gpu_name":"RTX 3070","vram_gb":8,"tier":"8gb","native_pcie_gen":4,"native_pcie_width":16,"disk_gb":100,"vast_price_cap_usd_per_hour":0.20}
+    {"card_id":"rtx-3090-24gb","gpu_name":"RTX 3090","vram_gb":24,"tier":"24gb","native_pcie_gen":4,"native_pcie_width":16,"ram_floor_gb":32,"disk_gb":150,"vast_price_cap_usd_per_hour":0.40},
+    {"card_id":"rtx-4060-ti-16gb","gpu_name":"RTX 4060 Ti","vram_gb":16,"tier":"16gb","native_pcie_gen":4,"native_pcie_width":8,"ram_floor_gb":16,"disk_gb":100,"vast_price_cap_usd_per_hour":0.35},
+    {"card_id":"rtx-3060-12gb","gpu_name":"RTX 3060","vram_gb":12,"tier":"12gb","native_pcie_gen":4,"native_pcie_width":16,"ram_floor_gb":16,"disk_gb":100,"vast_price_cap_usd_per_hour":0.20},
+    {"card_id":"rtx-3070-8gb","gpu_name":"RTX 3070","vram_gb":8,"tier":"8gb","native_pcie_gen":4,"native_pcie_width":16,"ram_floor_gb":16,"disk_gb":100,"vast_price_cap_usd_per_hour":0.20}
   ]
 }

@@ -82,6 +82,10 @@ def test_disk_filter():
     assert filter_offers([low,ok],.15,'any',card)['id']==2
     at_reliability_floor={**ok,'id':5,'reliability':.97,'pcie_bw':8}
     assert filter_offers([at_reliability_floor],.15,'any',card)['id']==5
+    unverified={**ok,'id':6,'verified':False,'cpu_ram':32000}
+    assert filter_offers([unverified],.15,'any',[{**card[0],'ram_floor_gb':32}])['id']==6
+    below_ram_floor={**unverified,'id':7,'cpu_ram':31999}
+    assert filter_offers([below_ram_floor],.15,'any',[{**card[0],'ram_floor_gb':32}]) is None
     unreliable={**ok,'id':3,'reliability':.969}
     bw_below_x16={**ok,'id':4,'pcie_bw':7.99}
     assert filter_offers([unreliable],.15,'any',card) is None
@@ -89,7 +93,22 @@ def test_disk_filter():
     x8_card=[{'gpu_name':'RTX 4060 Ti','disk_gb':100,'native_pcie_gen':4,'native_pcie_width':8}]
     x8_offer={**ok,'gpu_name':'RTX 4060 Ti','disk_space':100,'pcie_bw':6}
     assert filter_offers([x8_offer],.15,'any',x8_card)['id']==2
+    # Per-card floors/caps are data, and an unverified host remains eligible.
+    ram16_card=[{'gpu_name':'RTX 4060 Ti','disk_gb':100,'native_pcie_gen':4,'native_pcie_width':8,'ram_floor_gb':16}]
+    ram16_offer={**x8_offer,'cpu_ram':16000,'verified':False}
+    assert filter_offers([ram16_offer],.35,'any',ram16_card)['id']==2
+    assert filter_offers([{**ram16_offer,'dph_total':.21}],.20,'any',ram16_card) is None
     print('offer_disk_filter: passed')
+
+def test_per_config_ram_requirement():
+    sys.path.insert(0,str(SCRIPTS))
+    import card_runner
+    assert card_runner.ram_requirement(30,24)==(24,6,14)
+    assert card_runner.ram_requirement(30,30)==(30,0,8)
+    # Exactly the required free-RAM threshold passes; anything below is skipped.
+    assert 14 >= card_runner.ram_requirement(30,24)[2]
+    assert 13.99 < card_runner.ram_requirement(30,24)[2]
+    print('per_config_ram_requirement: passed')
 
 def test_smoke_requires_registered_gpu():
     sys.path.insert(0,str(SCRIPTS))
@@ -105,4 +124,4 @@ def test_smoke_requires_registered_gpu():
     print('smoke_registry_only: passed')
 
 if __name__=='__main__':
-    test_retry_400_next_offer(); test_empty_stdout_is_create_failure(); test_disk_filter(); test_smoke_requires_registered_gpu()
+    test_retry_400_next_offer(); test_empty_stdout_is_create_failure(); test_disk_filter(); test_per_config_ram_requirement(); test_smoke_requires_registered_gpu()

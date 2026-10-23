@@ -2,9 +2,15 @@
 
 ## 2026-10-23
 
+- Methodology v1.1 sets per-card CPU RAM floors and price caps, makes host
+  verification informational, and enforces a per-configuration free-RAM
+  requirement with an 8 GiB reserve. Result rows and run metadata include host
+  total RAM, raw offer CPU RAM, free RAM at load, and verification status.
+- Card runs now gate on that card's offer funnel only. A single eligible host is
+  allowed and is recorded as having replication `unavailable`.
 - Preflight now records idle/max/host-max PCIe capability and samples negotiated
   generation and width during a 10-second GPU benchmark load. Idle power-saving
-  downshift no longer rejects a suitable host; results schema is 1.2.
+  downshift no longer rejects a suitable host; results schema is 1.3.
 - Smoke rentals now select only registered cards. Removed three private
   smoke-session host exclusions after confirming they were idle Gen 1 readings.
 - Offer filters now use reliability >= 0.97 and measured pcie_bw floors of 8
