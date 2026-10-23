@@ -21,10 +21,7 @@ PY
 )
 fi
 mkdir -p "$out" "$private/create-responses" "$private/watchdogs"
-if [[ "$mode" == card && -n "$(find "$out" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
-  echo 'refusing to overwrite an existing committed or partial run directory; use a new run_id' >&2
-  exit 2
-fi
+if [[ "$mode" == card ]]; then "$scripts/check_run_output.sh" "$out"; fi
 if [[ -n "${5:-}" ]]; then run_id=$5
 elif [[ "$mode" == card ]]; then echo 'card mode requires explicit run_id' >&2; exit 2
 else run_id="${mode}-$(date -u +%Y%m%dT%H%M%SZ)"; fi
