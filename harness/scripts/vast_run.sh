@@ -327,7 +327,7 @@ if [[ "$mode" == smoke || "$mode" == smoke-kill ]]; then
     touch "$out/kill-test-running"
     wait "$smoke_pid"
   else
-    "${ssh[@]}" 'mkdir -p /workspace/output; curl -fL --retry 3 -o /workspace/tinyllama.gguf https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories15M-q4_0.gguf; /workspace/gpu_bench.sh /workspace/tinyllama.gguf /workspace/output/smoke-bench.json /workspace/output/smoke-bench.log -ngl 999 -p 512 -n 128 -r 1 -o json; kill "$(cat /workspace/output/telemetry.pid)"'
+    "${ssh[@]}" "set -e; mkdir -p /workspace/output; curl -fL --retry 3 -o /workspace/tinyllama.gguf https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories15M-q4_0.gguf; /workspace/gpu_bench.sh /workspace/tinyllama.gguf /workspace/output/smoke-bench.json /workspace/output/smoke-bench.log -ngl 999 -p 512 -n 128 -r 1 -o json; kill \"\$(cat '/workspace/output/hosts/$host_path/telemetry.pid')\""
   fi
 else
   card_id=$(python3 - "$gpu" <<'PY'

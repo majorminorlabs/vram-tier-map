@@ -33,7 +33,7 @@ FROM nvidia/cuda:12.8.1-runtime-ubuntu22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl git jq pciutils procps python3 python3-yaml \
+    curl git jq libgomp1 pciutils procps python3 python3-yaml \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /workspace/llama.cpp/build/bin
 
