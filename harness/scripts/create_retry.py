@@ -34,7 +34,7 @@ for attempt in range(1, 4):
     except Exception:
         errors.append('offer search returned non-JSON output')
         break
-    offer = filter_offers(raw, cap, gpu, registry, skipped, failed)
+    offer = filter_offers(raw, cap, gpu, registry, skipped, failed, mode in ('smoke','smoke-kill'))
     if offer is None:
         errors.append('no eligible offer remains after disk and hardware filters')
         break
