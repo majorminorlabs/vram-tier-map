@@ -171,14 +171,11 @@ printf '%s\n' "$id" > "$out/instance-id.txt"
 printf '%s\n' "$label" > "$out/label.txt"
 printf 'run_id=%s\ninstance_id=%s\nlabel=%s\nmachine_id=%s\noffer_id=%s\nhourly_usd=%s\ncreate_attempt=%s\ndisk_gb=%s\n' "$run_id" "$id" "$label" "$host" "$offer_id" "$hourly" "$create_attempt" "$disk_gb" > "$private/${run_id}-instance.txt"
 echo "created/adopted run=$run_id instance=$id gpu=$offer_gpu hourly=$hourly"
-startup_log="$private/startup/${run_id}-${id}.jsonl"
-mkdir -p "$private/startup"
-startup_rc=0
-startup_reason=$(python3 "$scripts/startup_monitor.py" "$id" "$startup_log") || startup_rc=$?
-if (( startup_rc == 42 )); then
-  printf 'host_id=%s machine_id=%s reason=startup stall detail=%s\n' "$host_id" "$host" "$startup_reason" >> "$private/failed-host-reasons.tsv"
+handle_startup_host_failure() {
+  local reason=$1 rejected
+  printf 'host_id=%s machine_id=%s reason=startup failure detail=%s\n' "$host_id" "$host" "$reason" >> "$private/failed-host-reasons.tsv"
   if [[ -n "$host" ]]; then printf '%s\n' "$host" >> "$failed"; sort -u "$failed" -o "$failed"; fi
-  echo "startup host failure; reason=$startup_reason machine_id=$host; destroying and advancing" >&2
+  echo "startup host failure; reason=$reason machine_id=$host; destroying and advancing" >&2
   "$scripts/teardown.sh" "$id" "$label" "$state" >> "$state/teardown.log" 2>&1 || exit 1
   if [[ -f "$state/active-instance-meta.json" ]]; then
     read -r meta_run meta_id meta_hourly meta_started meta_ledger < <(python3 -c 'import json,sys; x=json.load(open(sys.argv[1])); print(x["run_id"],x["instance_id"],x["hourly"],x["started_epoch"],x["ledger"])' "$state/active-instance-meta.json")
@@ -193,8 +190,15 @@ if (( startup_rc == 42 )); then
     rm -f "$state/main.done" "$state/active-instance-id.txt"
     exec env VTM_REJECTED_COUNT="$((rejected + 1))" "$0" "$mode" "$gpu" "$cap" "$out" "$run_id"
   fi
-  echo "ERROR: $host_retry_limit hosts failed startup/preflight; attempt aborted" >&2
+  echo "ERROR: $host_retry_limit hosts failed startup; attempt aborted" >&2
   exit 1
+}
+startup_log="$private/startup/${run_id}-${id}.jsonl"
+mkdir -p "$private/startup"
+startup_rc=0
+startup_reason=$(python3 "$scripts/startup_monitor.py" "$id" "$startup_log") || startup_rc=$?
+if (( startup_rc == 42 )); then
+  handle_startup_host_failure "$startup_reason"
 elif (( startup_rc != 0 )); then
   echo "startup monitor failed (exit $startup_rc): $startup_reason" >&2
   exit "$startup_rc"
@@ -221,7 +225,7 @@ PY
   [[ -n "$ssh_host" && -n "$ssh_port" ]] && break
   sleep 10
 done
-[[ -n "$ssh_host" && -n "$ssh_port" ]] || { echo 'SSH endpoint startup timed out' >&2; exit 1; }
+[[ -n "$ssh_host" && -n "$ssh_port" ]] || handle_startup_host_failure 'SSH endpoint startup timed out'
 ssh=(ssh -i "$ssh_key" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -p "$ssh_port" "root@$ssh_host")
 scp_opts=(-i "$ssh_key" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -P "$ssh_port")
 ready=0
@@ -229,7 +233,7 @@ while (( $(date +%s) < startup_deadline )); do
   if "${ssh[@]}" 'test -x /workspace/bin/llama-bench' >/dev/null 2>&1; then ready=1; break; fi
   sleep 10
 done
-(( ready )) || { echo 'pinned llama.cpp image startup timed out' >&2; exit 1; }
+(( ready )) || handle_startup_host_failure 'SSH/image readiness timed out'
 upload_log="$out/upload-paths.log"
 mkdir -p "$out"
 local_sha256() { python3 - "$1" <<'PY'
