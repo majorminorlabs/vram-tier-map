@@ -26,7 +26,7 @@ commit by GitHub Actions. Its CUDA build sets
 `llama-bench`, `llama-server`, `llama-cli`, and `llama-tokenize`. The published
 image is pulled by immutable digest. The digest is recorded in
 `harness/registry/runtime.yaml` and each run's `run.json`.
-Published image: `ghcr.io/majorminorlabs/vtm-llamacpp@sha256:432a22a393d71275c62b0aa3a1e3261e0b8b464830807e11b3df2bba114c5a90`.
+Published image: `ghcr.io/majorminorlabs/vtm-llamacpp@sha256:6b1018ad94124b8f13c9216da98332df41051c2d73ef782a9744836b09033d3c`.
 The linux/amd64 manifest has 2.230 GiB of compressed layers and an estimated
 3.631 GiB uncompressed layer total, calculated from each gzip layer's ISIZE
 trailer. The runtime stage already uses the CUDA runtime base; no image-base

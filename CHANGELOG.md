@@ -2,6 +2,14 @@
 
 ## 2026-10-23
 
+- Rebuilt the public CUDA image on GitHub Actions in 43 minutes 45 seconds after
+  the smoke gate found missing runtime `libgomp.so.1`. New digest:
+  `sha256:6b1018ad94124b8f13c9216da98332df41051c2d73ef782a9744836b09033d3c`.
+  Anonymous GHCR pull succeeded. Verified `libgomp` resolves and the CUDA driver
+  stub is absent from the runtime library path, loader configuration, and final
+  image. The image remains slim at 2.231 GiB compressed (about 3.632 GiB
+  uncompressed).
+
 - Methodology v1.2 makes smoke PCIe, power, and RAM observations warn-only while retaining
   its lifecycle, CUDA offload, result-pull, teardown, and kill-9 watchdog gates.
 - Card power acceptance is `power.limit >= 90% * power.default_limit`; both watt values
