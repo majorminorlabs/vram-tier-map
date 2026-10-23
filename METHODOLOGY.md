@@ -24,16 +24,14 @@ the runtime was checked, so the runtime image is built from that exact source
 commit by GitHub Actions with CUDA Toolkit 12.2.2 for build and runtime. Its CUDA build sets
 `CMAKE_CUDA_ARCHITECTURES="75;86;89"` and `GGML_NATIVE=OFF`; it includes
 `llama-bench`, `llama-server`, `llama-cli`, and `llama-tokenize`. The published
-image is pulled by immutable digest. The digest is recorded in
-`harness/registry/runtime.yaml` and each run's `run.json`.
-CUDA 12.2 requires Linux driver >=535.54.03 ([NVIDIA CUDA Toolkit release notes](https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/)). Record the
-published image size in `CHANGELOG.md` after the rebuild.
+image is `ghcr.io/majorminorlabs/vtm-llamacpp@sha256:cbaf8a54939ff5365785066196fbe9ff0f162eaf2022de4db15a8768a72107ed`, pulled by immutable digest and recorded in `harness/registry/runtime.yaml` and each run's `run.json`.
+CUDA 12.2 requires Linux driver >=535.54.03 ([NVIDIA CUDA Toolkit release notes](https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/)).
 
 The CUDA `libcuda.so` stub is used only in the build stage to link the CUDA
 binaries. Its build-stage `libcuda.so.1` symlink and linker search flags are not
 copied into the runtime stage. The runtime stage does not add the stub to
-`LD_LIBRARY_PATH` or the dynamic loader configuration; no `cuda-compat`
-libraries are installed in the runtime stage. The NVIDIA container runtime
+`LD_LIBRARY_PATH` or the dynamic loader configuration, and no `cuda-compat`
+directory appears on either loader path. The NVIDIA container runtime
 supplies the real driver library to the running container.
 
 ## GPU execution gate

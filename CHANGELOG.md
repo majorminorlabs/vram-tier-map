@@ -2,6 +2,12 @@
 
 ## 2026-10-23
 
+- Rebuilt the pinned llama.cpp image with CUDA 12.2.2 on GitHub Actions in 31 minutes 10 seconds.
+  Public immutable digest: `sha256:cbaf8a54939ff5365785066196fbe9ff0f162eaf2022de4db15a8768a72107ed`.
+  Anonymous linux/amd64 pull succeeded. Compressed layers total 1,701,830,331 bytes;
+  Docker reports 1,701,847,670 bytes uncompressed. Verified no CUDA stub files or
+  stub link on the loader path, and no cuda-compat path on the loader path.
+
 - Switched the pinned llama.cpp image build to CUDA 12.2.2 build and runtime stages,
   preserving the `75;86;89` architecture list and driver-stub build-only setup.
   CUDA compatibility filtering checks Vast's `cuda_max_good` and `driver_version`
