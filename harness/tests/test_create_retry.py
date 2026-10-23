@@ -19,7 +19,7 @@ if args[:3]==['search','offers','--raw']:
 elif args[:3]==['create','instance','101']:
     label=args[args.index('--label')+1]
     pathlib.Path(os.environ['MOCK_INSTANCES']).write_text(json.dumps([{'id':900,'label':label}]))
-    print(json.dumps({'success':False,'error':'HTTP 400 insufficient disk'})); print('HTTP 400: insufficient disk',file=sys.stderr)
+    print(json.dumps({'success':False,'error':'HTTP 400 no_such_ask'})); print('HTTP 400: error 404/3603: no_such_ask Instance type is not available',file=sys.stderr)
 elif args[:3]==['create','instance','102']:
     print(json.dumps({'success':True,'new_contract':777}))
 elif args==['show','instances','--raw']:
@@ -55,7 +55,7 @@ def test_retry_400_next_offer():
         assert destroys==[['destroy','instance','900','--yes','--raw']], destroys
         assert json.loads(Path(env['MOCK_INSTANCES']).read_text())==[]
         err=(private/'create-responses'/'test-run-attempt-01.stderr.txt').read_text()
-        assert 'HTTP 400: insufficient disk' in err
+        assert 'HTTP 400: error 404/3603: no_such_ask' in err
         summary=json.loads((private/'create-responses'/'test-run.stderr-summary.json').read_text())
         assert summary['attempts'][0]['http_status']==400
         print('create_400_retry_next_offer: passed; offer 102 selected, orphan cleaned before next offer')
@@ -80,6 +80,15 @@ def test_disk_filter():
     ok={**low,'id':2,'disk_space':150}
     assert filter_offers([low],.15,'any',card) is None
     assert filter_offers([low,ok],.15,'any',card)['id']==2
+    at_reliability_floor={**ok,'id':5,'reliability':.97,'pcie_bw':8}
+    assert filter_offers([at_reliability_floor],.15,'any',card)['id']==5
+    unreliable={**ok,'id':3,'reliability':.969}
+    bw_below_x16={**ok,'id':4,'pcie_bw':7.99}
+    assert filter_offers([unreliable],.15,'any',card) is None
+    assert filter_offers([bw_below_x16],.15,'any',card) is None
+    x8_card=[{'gpu_name':'RTX 4060 Ti','disk_gb':100,'native_pcie_gen':4,'native_pcie_width':8}]
+    x8_offer={**ok,'gpu_name':'RTX 4060 Ti','disk_space':100,'pcie_bw':6}
+    assert filter_offers([x8_offer],.15,'any',x8_card)['id']==2
     print('offer_disk_filter: passed')
 
 def test_smoke_requires_registered_gpu():

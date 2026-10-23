@@ -7,6 +7,9 @@
   downshift no longer rejects a suitable host; results schema is 1.2.
 - Smoke rentals now select only registered cards. Removed three private
   smoke-session host exclusions after confirming they were idle Gen 1 readings.
+- Offer filters now use reliability >= 0.97 and measured pcie_bw floors of 8
+  (native x16) or 6 (native x8); smoke searches use a $0.30/h cap. A
+  no_such_ask create response triggers immediate orphan cleanup and re-search.
 
 Not yet published. Add dated entries for methodology, schema, harness, and
 edition changes. Do not rewrite historical run records.

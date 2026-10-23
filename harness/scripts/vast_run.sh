@@ -4,6 +4,7 @@ mode=${1:?usage: vast_run.sh smoke|smoke-kill|card GPU_NAME HOURLY_CAP OUTPUT_DI
 gpu=${2:?GPU_NAME}
 cap=${3:?HOURLY_CAP}
 out=${4:?OUTPUT_DIR}
+if [[ "$mode" == smoke || "$mode" == smoke-kill ]]; then cap=0.30; fi
 repo=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$repo"
 scripts="$repo/harness/scripts"

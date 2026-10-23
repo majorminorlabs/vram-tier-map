@@ -18,7 +18,7 @@ def filter_offers(raw, cap, requested_gpu, cards, skipped=(), failed=(), smoke=F
             continue
         if int(offer.get('num_gpus', 0)) != 1 or float(offer.get('cpu_ram', 0)) < 64000:
             continue
-        if float(offer.get('reliability', 0)) < .98:
+        if float(offer.get('reliability', 0)) < .97:
             continue
         if not (offer.get('verified') is True or offer.get('verification') == 'verified' or offer.get('vericode') == 1):
             continue
@@ -26,9 +26,10 @@ def filter_offers(raw, cap, requested_gpu, cards, skipped=(), failed=(), smoke=F
             continue
         if float(offer.get('pci_gen', 0)) < 3:
             continue
-        # Vast's pcie_bw is measured offer data, not a guaranteed theoretical
-        # link rate. Exact negotiated lane width is checked on-host.
-        if float(offer.get('pcie_bw', 0)) < 7.88 or float(offer.get('disk_space', 0)) < disk_gb:
+        # pcie_bw is a coarse measured-offer floor only; preflight under GPU
+        # load remains authoritative for negotiated generation and width.
+        pcie_bw_floor = 8 if int(card['native_pcie_width']) == 16 else 6
+        if float(offer.get('pcie_bw', 0)) < pcie_bw_floor or float(offer.get('disk_space', 0)) < disk_gb:
             continue
         valid.append({**offer, '_vtm_disk_gb': disk_gb, '_vtm_native_pcie_gen': card['native_pcie_gen'], '_vtm_native_pcie_width': card['native_pcie_width'], '_vtm_expected_gpu_name':card.get('preflight_gpu_name',gpu)})
     if not valid:
