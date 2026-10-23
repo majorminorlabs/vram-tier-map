@@ -100,7 +100,10 @@ def monitor_startup(instance_id, log_path, *, fetch=fetch_vast, sleep=time.sleep
             return 0, "running"
         if status.lower() in {"error", "failed", "exited", "destroyed"}:
             return 42, f"terminal startup status: {status}"
-        if previous is None or status != previous[0] or message != previous[1] or progress != previous[2]:
+        # status_msg is a potentially large, rolling log string that can change
+        # only because the API truncates its leading characters. Do not let that
+        # reset the stall clock; explicit image pull progress is extracted above.
+        if previous is None or status != previous[0] or progress != previous[2]:
             previous_activity = now
         previous = fields
         elapsed = now - start

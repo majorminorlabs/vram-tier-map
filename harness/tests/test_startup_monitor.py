@@ -29,6 +29,17 @@ def test_stall():
         records = [json.loads(x) for x in (Path(td) / "stall.jsonl").read_text().splitlines()]
         assert len(records) == 4 and records[-1]["actual_status"] == "created"
 
+def test_rolling_status_message_does_not_hide_stall():
+    clock = FakeClock(); n = 0
+    def fetch(_):
+        nonlocal n
+        n += 1
+        return {"actual_status":"loading", "status_msg":f"rolling log tail {n}"}
+    with tempfile.TemporaryDirectory() as td:
+        code, reason = monitor_startup("123",Path(td)/"rolling.jsonl",fetch=fetch,
+            sleep=clock.sleep,clock=clock.now,poll_seconds=20,stall_seconds=60,total_seconds=180)
+        assert code==42 and "8 minutes" in reason
+
 
 def test_slow_pull():
     clock = FakeClock(); progress = iter([0, 20, 40, 60, 80, 100, "running"])
@@ -59,5 +70,5 @@ def test_running_success():
 
 
 if __name__ == "__main__":
-    test_stall(); test_slow_pull(); test_running_success()
-    print("startup_monitor_stall_slow_pull_success: 3 cases passed")
+    test_stall(); test_rolling_status_message_does_not_hide_stall(); test_slow_pull(); test_running_success()
+    print("startup_monitor_stall_slow_pull_success: 4 cases passed")
