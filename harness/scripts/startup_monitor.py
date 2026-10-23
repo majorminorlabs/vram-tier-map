@@ -13,6 +13,7 @@ TOTAL_SECONDS = 25 * 60
 POLL_SECONDS = 20
 TOKEN_LIKE = re.compile(r"(?<![A-Za-z0-9])[A-Za-z0-9_./+=-]{32,}(?![A-Za-z0-9])")
 PERCENT = re.compile(r"\b\d+(?:\.\d+)?\s*%")
+PULL_LINE = re.compile(r"(?im)^\s*([0-9a-f]{12,64}):\s*(Pulling fs layer|Waiting|Downloading|Verifying Checksum|Download complete|Extracting|Pull complete|Already exists)\b.*$")
 
 
 def redact(value):
@@ -51,6 +52,8 @@ def status_fields(raw):
         match = PERCENT.search(str(message))
         if match:
             progress_values.append(match.group(0).replace(" ", ""))
+    if not progress_values:
+        progress_values.extend(f"{layer}:{state}" for layer,state in PULL_LINE.findall(str(message)))
     return str(status), str(message or ""), ";".join(progress_values)
 
 

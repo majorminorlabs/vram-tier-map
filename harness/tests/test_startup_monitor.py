@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "harness" / "scripts"))
-from startup_monitor import monitor_startup
+from startup_monitor import monitor_startup, status_fields
 
 
 class FakeClock:
@@ -68,7 +68,13 @@ def test_running_success():
         )
         assert (code, reason) == (0, "running")
 
+def test_status_message_layer_progress_is_recognized():
+    first=status_fields({"actual_status":"loading","status_msg":"abc123abc123: Downloading 10 MB"})
+    second=status_fields({"actual_status":"loading","status_msg":"abc123abc123: Download complete"})
+    assert first[2] == "abc123abc123:Downloading"
+    assert second[2] == "abc123abc123:Download complete"
+
 
 if __name__ == "__main__":
-    test_stall(); test_rolling_status_message_does_not_hide_stall(); test_slow_pull(); test_running_success()
-    print("startup_monitor_stall_slow_pull_success: 4 cases passed")
+    test_stall(); test_rolling_status_message_does_not_hide_stall(); test_slow_pull(); test_running_success(); test_status_message_layer_progress_is_recognized()
+    print("startup_monitor_stall_slow_pull_success: 5 cases passed")
