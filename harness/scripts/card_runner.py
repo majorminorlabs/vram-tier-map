@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """GPU fit, speed, TTFT, and strict task evaluation for one card run."""
-import argparse, hashlib, json, os, re, signal, subprocess, sys, time, urllib.request
+import argparse, csv, hashlib, json, os, re, signal, subprocess, sys, time, urllib.request
 from pathlib import Path
 import yaml
 
@@ -189,10 +189,15 @@ def main():
     rows=[]
     for model in registry['models']:
         row=run_model(model,args); rows.append(row)
-        result={'card_id':args.card_id,'run_id':args.run_id,'model_id':row['model_id'],'quant':row.get('quant','not-fit'),'task_set_version':'cuda-recipes-001-v1','fit_max_ctx':row.get('fit_max_ctx',''),'kv_type':row.get('kv_type','none'),'n_cpu_moe':row.get('n_cpu_moe',''),'peak_vram_gb':row.get('peak_vram_gb',''),'peak_ram_gb':row.get('peak_ram_gb',''),'prompt_tps_64k':row.get('prompt_tps_64k',''),'decode_tps_64k':row.get('decode_tps_64k',''),'decode_tps_120k':row.get('decode_tps_120k',''),'ttft_64k_ms':row.get('ttft_64k_ms',''),'strict_pass_rate':row.get('strict_pass_rate',''),'task_wall_clock_s':row.get('task_wall_clock_s',''),'speed_cv_percent':row.get('speed_cv_percent',''),'cost_usd':'','flags':';'.join(row.get('flags',[])) or ('fit_failed' if row.get('fit')=='failed' else 'none')}
+        preflight=list(csv.reader(open(OUT/'hosts'/args.host_id/'gpu-preflight.csv',newline='')))
+        pcie_gen=int(preflight[0][4].strip())
+        pcie_width=int(preflight[0][6].strip())
+        flags=list(row.get('flags',[]))
+        if pcie_gen == 3 and args.card_id in ('rtx-3090-24gb','rtx-4060-ti-16gb','rtx-3060-12gb','rtx-3070-8gb'): flags.append('pcie_gen3_on_gen4_card')
+        result={'card_id':args.card_id,'run_id':args.run_id,'model_id':row['model_id'],'quant':row.get('quant','not-fit'),'task_set_version':'cuda-recipes-001-v1','fit_max_ctx':row.get('fit_max_ctx',''),'kv_type':row.get('kv_type','none'),'n_cpu_moe':row.get('n_cpu_moe',''),'peak_vram_gb':row.get('peak_vram_gb',''),'peak_ram_gb':row.get('peak_ram_gb',''),'prompt_tps_64k':row.get('prompt_tps_64k',''),'decode_tps_64k':row.get('decode_tps_64k',''),'decode_tps_120k':row.get('decode_tps_120k',''),'ttft_64k_ms':row.get('ttft_64k_ms',''),'strict_pass_rate':row.get('strict_pass_rate',''),'task_wall_clock_s':row.get('task_wall_clock_s',''),'speed_cv_percent':row.get('speed_cv_percent',''),'cost_usd':'','pcie_gen_actual':pcie_gen,'pcie_width_actual':pcie_width,'flags':';'.join(flags) or ('fit_failed' if row.get('fit')=='failed' else 'none')}
         p=OUT/'results.csv'
         import csv
-        fields=['card_id','run_id','model_id','quant','task_set_version','fit_max_ctx','kv_type','n_cpu_moe','peak_vram_gb','peak_ram_gb','prompt_tps_64k','decode_tps_64k','decode_tps_120k','ttft_64k_ms','strict_pass_rate','task_wall_clock_s','speed_cv_percent','cost_usd','flags']
+        fields=['card_id','run_id','model_id','quant','task_set_version','fit_max_ctx','kv_type','n_cpu_moe','peak_vram_gb','peak_ram_gb','prompt_tps_64k','decode_tps_64k','decode_tps_120k','ttft_64k_ms','strict_pass_rate','task_wall_clock_s','speed_cv_percent','cost_usd','pcie_gen_actual','pcie_width_actual','flags']
         with p.open('a',newline='') as f:
             w=csv.DictWriter(f,fieldnames=fields)
             if p.stat().st_size==0:w.writeheader()

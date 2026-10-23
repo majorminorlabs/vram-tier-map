@@ -22,3 +22,9 @@ edition changes. Do not rewrite historical run records.
   CUDA Recipes 001's 40 tasks and strict deterministic scorer, with source
   attribution and CC-BY-4.0 licensing; continue excluding agent prompts, plans,
   handoffs, social assets, and articles.
+
+# 2026-10-22
+
+- Added per-card native PCIe generation and width, offer filtering using Vast's `pci_gen` and `pcie_bw`, actual negotiated PCIe values in result rows/run metadata, and a flag for Gen 3 links on Gen 4 cards.
+- Preflight-rejected hosts are destroyed, confirmed absent, excluded, and replaced up to a three-host limit; execution failures remain gate failures.
+- Watchdog treats whitespace/empty instance output and an empty list as zero instances and exits once its run's instances are gone. Mock coverage added.

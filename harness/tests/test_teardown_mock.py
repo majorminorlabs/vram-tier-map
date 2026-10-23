@@ -16,6 +16,9 @@ args=sys.argv[1:]
 with open(os.environ["MOCK_VAST_LOG"],"a") as f: f.write(json.dumps(args)+"\n")
 state=pathlib.Path(os.environ["MOCK_VAST_STATE"])
 if args == ["show","instances","--raw"]:
+    if os.environ.get("MOCK_EMPTY_RESPONSE") == "1":
+        print("   ")
+        raise SystemExit(0)
     try: item=json.loads(state.read_text())
     except FileNotFoundError: item=None
     print(json.dumps([item] if item else []))
@@ -63,6 +66,14 @@ def main():
     run_case("watchdog", lambda t: [str(SCRIPTS / "watchdog.sh"), "vtm-test", "999999999", "0", str(t / "state")], make_instance())
     run_case("orphan_cleanup", lambda t: [str(SCRIPTS / "cleanup_orphans.sh"), "", str(t / "log")], make_instance("vtm-orphan"))
     run_case("label_cleanup", lambda t: [str(SCRIPTS / "destroy_label.sh"), "vtm-test", str(t / "log")], make_instance())
+    with tempfile.TemporaryDirectory(prefix="vtm-watchdog-empty-") as temp:
+        temp=Path(temp); bindir=temp/"bin"; bindir.mkdir(); mock=bindir/"vastai"; mock.write_text(MOCK_VASTAI); mock.chmod(0o755)
+        state=temp/"state"; state.mkdir(); (state/"active-instance-id.txt").write_text("42\n")
+        log=temp/"argv.jsonl"; env=os.environ.copy(); env.update(PATH=f"{bindir}:{env['PATH']}",MOCK_VAST_LOG=str(log),MOCK_VAST_STATE=str(temp/"none"),MOCK_EMPTY_RESPONSE="1")
+        subprocess.run([str(SCRIPTS/"watchdog.sh"),"vtm-test","999999999","0",str(state)],cwd=ROOT,env=env,check=True,timeout=10)
+        calls=[json.loads(line) for line in log.read_text().splitlines()]
+        assert calls == [["show","instances","--raw"]], f"watchdog should exit cleanly on whitespace response: {calls!r}"
+        print("watchdog_empty_response: passed; whitespace instances response treated as zero")
 
 
 if __name__ == "__main__":

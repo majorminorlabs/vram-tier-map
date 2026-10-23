@@ -28,15 +28,17 @@ mkdir -p "$state"
 deadline=$(( $(date +%s) + 21600 ))
 "$scripts/destroy_label.sh" "$label" "$private/pre-create-cleanup.log"
 "$scripts/cleanup_orphans.sh" "$label" "$private/pre-create-cleanup.log"
-query="num_gpus=1 cpu_ram>=64 reliability>=0.98 verified=true rentable=true dph<=$cap"
+query="num_gpus=1 cpu_ram>=64 reliability>=0.98 verified=true rentable=true dph<=$cap pci_gen>=3 pcie_bw>=7.88"
 [[ "$gpu" == any ]] || query+=" gpu_name=${gpu// /_}"
 failed="$private/failed-host-ids.txt"
 if [[ -s "$failed" ]]; then hosts=$(tr '\n' ',' < "$failed" | sed 's/,$//'); [[ -z "$hosts" ]] || query+=" machine_id notin [$hosts]"; fi
 offers=$(vastai search offers --raw --limit 100 --order dph_total "$query" 2>/dev/null) || { echo 'Vast offer search failed using saved CLI auth' >&2; exit 1; }
-offer=$(python3 - "$offers" "$cap" <<'PY'
-import json,sys
+offer=$(python3 - "$offers" "$cap" "$gpu" harness/registry/cards.yaml "$failed" <<'PY'
+import json,sys,yaml
 r=json.loads(sys.argv[1]); r=r if isinstance(r,list) else r.get('offers',[])
-r=[x for x in r if int(x.get('num_gpus',0))==1 and float(x.get('cpu_ram',0))>=64000 and float(x.get('reliability',0))>=.98 and (x.get('verified') is True or x.get('verification')=='verified' or x.get('vericode')==1) and x.get('rentable') is True and float(x.get('dph_total',x.get('dph',1e9)))<=float(sys.argv[2])]
+cards=yaml.safe_load(open(sys.argv[4]))['cards']; supported={c['gpu_name']:c for c in cards}
+failed=set(open(sys.argv[5]).read().split()) if __import__('os').path.exists(sys.argv[5]) else set()
+r=[x for x in r if str(x.get('machine_id','')) not in failed and int(x.get('num_gpus',0))==1 and float(x.get('cpu_ram',0))>=64000 and float(x.get('reliability',0))>=.98 and (x.get('verified') is True or x.get('verification')=='verified' or x.get('vericode')==1) and x.get('rentable') is True and float(x.get('dph_total',x.get('dph',1e9)))<=float(sys.argv[2]) and float(x.get('pci_gen',0))>=3 and x.get('gpu_name') in supported and float(x.get('pcie_bw',0)) >= (15.75 if supported[x['gpu_name']]['native_pcie_width']==16 else 7.88) and (sys.argv[3]=='any' or x.get('gpu_name')==sys.argv[3])]
 if not r: raise SystemExit(1)
 r.sort(key=lambda x:(float(x.get('dph_total',x.get('dph',1e9))),-float(x.get('reliability',0))))
 print(json.dumps(r[0]))
@@ -45,6 +47,20 @@ PY
 offer_id=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["id"])' "$offer")
 host=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("machine_id",""))' "$offer")
 offer_gpu=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("gpu_name",""))' "$offer")
+pcie_width=$(python3 - "$offer" harness/registry/cards.yaml <<'PY'
+import json,sys,yaml
+x=json.loads(sys.argv[1]); cards=yaml.safe_load(open(sys.argv[2]))['cards']
+c=next(c for c in cards if c['gpu_name']==x['gpu_name'])
+print(c['native_pcie_width'])
+PY
+)
+native_gen=$(python3 - "$offer" harness/registry/cards.yaml <<'PY'
+import json,sys,yaml
+x=json.loads(sys.argv[1]); cards=yaml.safe_load(open(sys.argv[2]))['cards']
+c=next(c for c in cards if c['gpu_name']==x['gpu_name'])
+print(c['native_pcie_gen'])
+PY
+)
 host_id=$(python3 -c 'import json,sys; x=json.loads(sys.argv[1]); print(x.get("host_id",x.get("machine_id","")))' "$offer")
 hourly=$(python3 -c 'import json,sys; x=json.loads(sys.argv[1]); print(x.get("dph_total",x.get("dph")))' "$offer")
 python3 - "$hourly" <<'PY'
@@ -218,7 +234,28 @@ host_path=${host_id//[^A-Za-z0-9_-]/_}
 upload_file "$scripts/onstart.sh" /workspace/onstart.sh true
 "${ssh[@]}" 'bash /workspace/onstart.sh'
 upload_file "$scripts/preflight.sh" /workspace/preflight.sh true
-"${ssh[@]}" "bash /workspace/preflight.sh '$gpu' '/workspace/output/hosts/$host_path'"
+preflight_rc=0
+"${ssh[@]}" "bash /workspace/preflight.sh '$offer_gpu' '$pcie_width' '$native_gen' '/workspace/output/hosts/$host_path'" || preflight_rc=$?
+if (( preflight_rc != 0 )); then
+  if (( preflight_rc != 42 )); then
+    echo "ERROR: preflight execution failed with status $preflight_rc; treating as harness/host execution failure" >&2
+    exit "$preflight_rc"
+  fi
+  if [[ "${VTM_REJECTED_COUNT:-0}" -lt 2 ]]; then
+    printf '%s\n' "$host" >> "$failed"
+    sort -u "$failed" -o "$failed"
+    echo "host rejected by preflight; destroying and advancing to next offer ($(( ${VTM_REJECTED_COUNT:-0} + 1 ))/3): machine_id=$host" >&2
+    "$scripts/teardown.sh" "$id" "$label" "$state" >> "$state/teardown.log" 2>&1
+    id=''
+    touch "$state/main.done"
+    wait "$wd" 2>/dev/null || true
+    rm -f "$state/main.done" "$state/active-instance-id.txt"
+    exec env VTM_REJECTED_COUNT="$(( ${VTM_REJECTED_COUNT:-0} + 1 ))" "$0" "$mode" "$gpu" "$cap" "$out" "$run_id"
+  fi
+  printf '%s\n' "$host" >> "$failed"
+  echo "ERROR: 3 hosts rejected by preflight; smoke/card attempt aborted" >&2
+  exit 1
+fi
 upload_file "$scripts/telemetry.sh" /workspace/telemetry.sh true
 "${ssh[@]}" "nohup bash /workspace/telemetry.sh '/workspace/output/hosts/$host_path/telemetry.csv' >'/workspace/output/hosts/$host_path/telemetry.log' 2>&1 </dev/null & echo \$! > '/workspace/output/hosts/$host_path/telemetry.pid'"
 if [[ "$mode" == smoke || "$mode" == smoke-kill ]]; then
@@ -252,9 +289,9 @@ pulled=1
 if [[ "$mode" == card ]]; then
   end_epoch=$(date +%s); end_utc=$(date -u +%FT%TZ); runtime=$((end_epoch-started_epoch))
   instance_state=$(vastai show instance "$id" --raw 2>/dev/null || true)
-  python3 - "$out" "$run_id" "$card_id" "$id" "$label" "$host_id" "$host" "$hourly" "$runtime" "$started_utc" "$end_utc" "$instance_state" <<'PY'
-import json,sys,yaml,pathlib,subprocess
-out,run_id,card_id,instance_id,label,host_id,machine_id,hourly,runtime,start,end,raw=sys.argv[1:]
+python3 - "$out" "$run_id" "$card_id" "$id" "$label" "$host_id" "$host" "$hourly" "$runtime" "$started_utc" "$end_utc" "$instance_state" "$host_path" <<'PY'
+import csv,json,sys,yaml,pathlib,subprocess
+out,run_id,card_id,instance_id,label,host_id,machine_id,hourly,runtime,start,end,raw,host_path=sys.argv[1:]
 cfg=yaml.safe_load(open('harness/registry/runtime.yaml'))
 digest=cfg['image_digest']; image=cfg['image'].split(':',1)[0]+'@'+digest
 try:
@@ -267,7 +304,10 @@ for key in ('actual_cost','total_cost','cost_usd','billed_amount','dollars_spent
  except Exception: pass
 if actual is None: actual=float(hourly)*int(runtime)/3600; source='hourly_rate_times_runtime_estimate'
 cards=json.load(open('harness/registry/cards.yaml'))['cards']; tier=next(c['tier'] for c in cards if c['card_id']==card_id)
-meta={'card_id':card_id,'run_id':run_id,'tier':tier,'llama_cpp_commit':cfg['llama_cpp_commit'],'image_digest':digest,'image':image,'harness_git_sha':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'schema_version':'1.0','methodology_version':'v1','hosts_used':[{'host_id':host_id,'machine_id':machine_id}],'wall_clock':{'start_utc':start,'end_utc':end,'seconds':int(runtime)},'instances':[{'instance_id':instance_id,'label':label,'host_id':host_id,'machine_id':machine_id,'hourly_rate_usd':float(hourly),'actual_cost_usd':round(actual,6),'cost_source':source}],'cost_usd':round(actual,6)}
+host_csv=pathlib.Path(out,'hosts',host_path,'gpu-preflight.csv')
+with host_csv.open(newline='') as f: pcie=next(csv.reader(f))
+pcie_gen=int(pcie[4].strip()); pcie_width=int(pcie[6].strip())
+meta={'card_id':card_id,'run_id':run_id,'tier':tier,'llama_cpp_commit':cfg['llama_cpp_commit'],'image_digest':digest,'image':image,'harness_git_sha':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'schema_version':'1.1','methodology_version':'v1','hosts_used':[{'host_id':host_id,'machine_id':machine_id,'pcie_gen_actual':pcie_gen,'pcie_width_actual':pcie_width,'pcie_native_gen':next(c['native_pcie_gen'] for c in cards if c['card_id']==card_id),'pcie_native_width':next(c['native_pcie_width'] for c in cards if c['card_id']==card_id),'pcie_gen3_on_gen4_card':pcie_gen==3 and next(c['native_pcie_gen'] for c in cards if c['card_id']==card_id)==4}],'wall_clock':{'start_utc':start,'end_utc':end,'seconds':int(runtime)},'instances':[{'instance_id':instance_id,'label':label,'host_id':host_id,'machine_id':machine_id,'hourly_rate_usd':float(hourly),'actual_cost_usd':round(actual,6),'cost_source':source}],'cost_usd':round(actual,6)}
 pathlib.Path(out,'run.json').write_text(json.dumps(meta,indent=2)+'\n')
 print('run metadata saved; cost source='+source)
 PY
