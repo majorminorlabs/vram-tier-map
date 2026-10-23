@@ -84,7 +84,7 @@ session_ledger=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["ses
 created_epoch=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["created_epoch"])' "$provision")
 offer_id=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["id"])' "$offer")
 host=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("machine_id",""))' "$offer")
-offer_gpu=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("gpu_name",""))' "$offer")
+offer_gpu=$(python3 -c 'import json,sys; x=json.loads(sys.argv[1]); print(x.get("_vtm_expected_gpu_name",x.get("gpu_name","")))' "$offer")
 disk_gb=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["_vtm_disk_gb"])' "$offer")
 pcie_width=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["_vtm_native_pcie_width"])' "$offer")
 native_gen=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["_vtm_native_pcie_gen"])' "$offer")

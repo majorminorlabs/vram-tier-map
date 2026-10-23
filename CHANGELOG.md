@@ -35,3 +35,4 @@ edition changes. Do not rewrite historical run records.
 - Added per-card scratch disk requirements, offer-side disk filtering, one-model-at-a-time GGUF deletion, and free-space checks with a 10 GiB reserve.
 - Added no-rental create retry, empty stdout, and disk filtering tests. Added a private estimated spend ledger and pre-rental $6 session cap.
 - Smoke-only offer qualification includes the verified RTX A2000 PCIe 4.0 x16 profile so the smoke search can use eligible GPUs outside the production card registry.
+- PCIe offer filtering uses a coarse `pcie_bw>=7.88` floor; preflight remains authoritative for exact lane width. Added the smoke-only Quadro RTX 4000 PCIe 3.0 x16 profile.

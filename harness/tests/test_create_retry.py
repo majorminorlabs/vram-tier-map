@@ -86,9 +86,10 @@ def test_smoke_accepts_supported_extra_gpu_profile():
     sys.path.insert(0,str(SCRIPTS))
     from offer_filter import filter_offers
     offer={'id':3,'machine_id':3,'gpu_name':'RTX A2000','num_gpus':1,'cpu_ram':64000,'reliability':.99,'verified':True,'rentable':True,'dph_total':.11,'pci_gen':4,'pcie_bw':23.9,'disk_space':690}
+    quadro={'id':4,'machine_id':4,'gpu_name':'Q RTX 4000','num_gpus':1,'cpu_ram':64000,'reliability':.99,'verified':True,'rentable':True,'dph_total':.108,'pci_gen':3,'pcie_bw':10.9,'disk_space':256}
     assert filter_offers([offer],.15,'any',[],smoke=False) is None
-    selected=filter_offers([offer],.15,'any',[],smoke=True)
-    assert selected and selected['_vtm_native_pcie_width']==16
+    selected=filter_offers([offer,quadro],.15,'any',[],smoke=True)
+    assert selected and selected['id']==4 and selected['_vtm_native_pcie_width']==16 and selected['_vtm_expected_gpu_name']=='RTX 4000'
     print('smoke_any_gpu_profile: passed')
 
 if __name__=='__main__':

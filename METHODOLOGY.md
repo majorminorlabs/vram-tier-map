@@ -79,7 +79,7 @@ Document any model-specific prompt limits or truncation in the result flags.
 
 ## PCIe host qualification
 
-Native PCIe specifications are versioned in `harness/registry/cards.yaml` for each card. Offer filtering uses Vast CLI offer fields `pci_gen` and `pcie_bw`: require generation 3 or newer and bandwidth sufficient for the card's native lane width (15.75 GB/s for x16, 7.88 GB/s for x8). The Vast CLI exposes these fields in `search offers` results (see the [official CLI source](https://github.com/vast-ai/vast-cli/blob/master/vast.py)). Preflight requires negotiated link width equal to the card's native width and current PCIe generation at least 3. Each model result records actual generation and width. A Gen 3 link on a Gen 4 card is flagged in result rows and run metadata; it remains eligible if it meets the width and minimum-generation rules.
+Native PCIe specifications are versioned in `harness/registry/cards.yaml` for each card. Offer filtering uses Vast CLI offer fields `pci_gen` and `pcie_bw`: require generation 3 or newer and measured bandwidth of at least 7.88. The Vast CLI exposes these fields in `search offers` results (see the [official CLI source](https://github.com/vast-ai/vast-cli/blob/master/vast.py)). Since `pcie_bw` is a marketplace measurement rather than a guaranteed theoretical link rate, on-host preflight is authoritative for exact negotiated lane width; preflight requires negotiated link width equal to the card's native width and current PCIe generation at least 3. Each model result records actual generation and width. A Gen 3 link on a Gen 4 card is flagged in result rows and run metadata; it remains eligible if it meets the width and minimum-generation rules.
 
 ## Provisioning and model storage
 
