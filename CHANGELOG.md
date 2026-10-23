@@ -34,3 +34,4 @@ edition changes. Do not rewrite historical run records.
 - Create diagnostics now retain redacted stderr and explicit HTTP status summaries; create requires JSON `success: true` and `new_contract`, then retries up to three disk-qualified offers with cleanup and per-run offer skips.
 - Added per-card scratch disk requirements, offer-side disk filtering, one-model-at-a-time GGUF deletion, and free-space checks with a 10 GiB reserve.
 - Added no-rental create retry, empty stdout, and disk filtering tests. Added a private estimated spend ledger and pre-rental $6 session cap.
+- Smoke-only offer qualification includes the verified RTX A2000 PCIe 4.0 x16 profile so the smoke search can use eligible GPUs outside the production card registry.

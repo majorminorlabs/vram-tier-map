@@ -2,9 +2,13 @@
 """Select the cheapest eligible offer from Vast search JSON."""
 import json, os, sys, yaml
 
-def filter_offers(raw, cap, requested_gpu, cards, skipped=(), failed=()):
+def filter_offers(raw, cap, requested_gpu, cards, skipped=(), failed=(), smoke=False):
     offers = raw if isinstance(raw, list) else raw.get('offers', [])
     supported = {card['gpu_name']: card for card in cards}
+    if smoke:
+        # Smoke-only profiles for otherwise-unregistered cards. Production runs
+        # still require a card entry in cards.yaml.
+        supported.setdefault('RTX A2000', {'gpu_name':'RTX A2000','disk_gb':100,'native_pcie_gen':4,'native_pcie_width':16})
     skipped, failed = set(map(str, skipped)), set(map(str, failed))
     valid = []
     for offer in offers:
@@ -40,6 +44,6 @@ if __name__ == '__main__':
     cards = yaml.safe_load(open(registry_path))['cards']
     skipped = open(skip_path).read().split() if os.path.exists(skip_path) else []
     failed = open(failed_path).read().split() if os.path.exists(failed_path) else []
-    selected = filter_offers(raw, cap, requested_gpu, cards, skipped, failed)
+    selected = filter_offers(raw, cap, requested_gpu, cards, skipped, failed, len(sys.argv) > 6 and sys.argv[6] == 'smoke')
     if selected is None: raise SystemExit(1)
     print(json.dumps(selected))

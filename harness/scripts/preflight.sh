@@ -22,7 +22,7 @@ rows = list(csv.reader(open(gpu_file, newline="")))
 if len(rows) != 1 or len(rows[0]) != 10:
     reject("preflight failed: expected exactly one GPU and complete telemetry fields")
 name, uuid, memory, bus, gen_current, gen_max, width_current, width_max, power, default = [x.strip() for x in rows[0]]
-normalized = name.removeprefix("NVIDIA GeForce ").removeprefix("GeForce ")
+normalized = name.removeprefix("NVIDIA GeForce ").removeprefix("NVIDIA ").removeprefix("GeForce ")
 if expected != "any" and normalized != expected:
     reject(f"preflight failed: expected {expected}; found {name}")
 actual_gen, actual_width = int(gen_current), int(width_current)
