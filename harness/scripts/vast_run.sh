@@ -17,6 +17,11 @@ if [[ -n "${5:-}" ]]; then run_id=$5
 elif [[ "$mode" == card ]]; then echo 'card mode requires explicit run_id' >&2; exit 2
 else run_id="${mode}-$(date -u +%Y%m%dT%H%M%SZ)"; fi
 [[ "$run_id" =~ ^[A-Za-z0-9_-]+$ ]] || { echo 'run_id contains unsupported characters' >&2; exit 2; }
+ssh_key=''
+for candidate in "$HOME/.ssh/id_ed25519" "$HOME/.ssh/id_rsa"; do
+  if [[ -r "$candidate" && -r "$candidate.pub" ]]; then ssh_key=$candidate; break; fi
+done
+[[ -n "$ssh_key" ]] || { echo 'No readable SSH key pair found at ~/.ssh/id_ed25519 or ~/.ssh/id_rsa' >&2; exit 2; }
 label="vtm-$run_id"
 state="$private/watchdogs/$run_id"
 mkdir -p "$state"
@@ -65,7 +70,8 @@ cleanup() {
   rc=$?
   trap - EXIT INT TERM
   if (( pulled == 0 )) && [[ -n "$id" && -n "${ssh_host:-}" && -n "${ssh_port:-}" ]]; then
-    vastai copy "$id:/workspace/output/" "local:$out/emergency-pull/" >/dev/null 2>&1 || echo 'emergency result pull failed before teardown' >&2
+    mkdir -p "$out/emergency-pull"
+    scp -i "$ssh_key" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -P "$ssh_port" -r "root@$ssh_host:/workspace/output/." "$out/emergency-pull/" >/dev/null 2>&1 || echo 'emergency result pull failed before teardown' >&2
   fi
   if [[ -n "$id" ]]; then
     printf '%s\n' "$id" > "$state/active-instance-id.txt"
@@ -79,7 +85,7 @@ trap cleanup EXIT INT TERM
 create_log="$private/create-responses/${run_id}.json"
 create_rc=0
 startup_deadline=$(( $(date +%s) + 900 ))
-created=$(python3 "$scripts/vast_create.py" "$run_id" "$label" "$offer_id" "$image" 120 "$scripts/onstart.sh" "$private/create-responses") || create_rc=$?
+created=$(python3 "$scripts/vast_create.py" "$run_id" "$label" "$offer_id" "$image" 120 "$private/create-responses") || create_rc=$?
 returned_id=$(python3 - "$created" <<'PY'
 import json,sys,re
 try:
@@ -110,7 +116,7 @@ PY
   while IFS= read -r row; do
     [[ "$row" == duplicate:* ]] || continue
     duplicate=${row#duplicate:}
-    vastai destroy instance "$duplicate" --raw >/dev/null 2>&1 || true
+    "$scripts/destroy_instance.sh" "$duplicate" "$label" "$private/duplicate-cleanup.log"
   done <<<"$matched"
 fi
 if [[ -z "$id" && -n "$returned_id" ]]; then id=$returned_id; fi
@@ -130,6 +136,10 @@ while (( $(date +%s) < startup_deadline )); do
   sleep 10
 done
 [[ "${status:-}" == running ]] || { echo 'instance startup timed out' >&2; exit 1; }
+if ! vastai attach ssh "$id" "$ssh_key.pub" >/dev/null 2>&1; then
+  echo 'failed to attach the selected local SSH public key to the instance' >&2
+  exit 1
+fi
 ssh_host=''; ssh_port=''
 while (( $(date +%s) < startup_deadline )); do
   endpoint=$(vastai ssh-url "$id" 2>/dev/null || true)
@@ -147,24 +157,77 @@ PY
   sleep 10
 done
 [[ -n "$ssh_host" && -n "$ssh_port" ]] || { echo 'SSH endpoint startup timed out' >&2; exit 1; }
-ssh=(ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -p "$ssh_port" "root@$ssh_host")
+ssh=(ssh -i "$ssh_key" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -p "$ssh_port" "root@$ssh_host")
+scp_opts=(-i "$ssh_key" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -P "$ssh_port")
 ready=0
 while (( $(date +%s) < startup_deadline )); do
   if "${ssh[@]}" 'test -x /workspace/bin/llama-bench' >/dev/null 2>&1; then ready=1; break; fi
   sleep 10
 done
 (( ready )) || { echo 'pinned llama.cpp image startup timed out' >&2; exit 1; }
-vastai copy "local:$scripts/preflight.sh" "$id:/workspace/preflight.sh" >/dev/null 2>&1 || { echo 'preflight upload failed' >&2; exit 1; }
+upload_log="$out/upload-paths.log"
+mkdir -p "$out"
+local_sha256() { python3 - "$1" <<'PY'
+import hashlib,sys
+h=hashlib.sha256()
+with open(sys.argv[1],'rb') as f:
+ for block in iter(lambda:f.read(1024*1024),b''): h.update(block)
+print(h.hexdigest())
+PY
+}
+verify_remote_file() {
+  local local_path=$1 remote_path=$2 must_exec=$3 expected remote_cmd
+  expected=$(local_sha256 "$local_path")
+  [[ "$remote_path" =~ ^/[A-Za-z0-9_./-]+$ ]] || { echo "unsafe remote upload path: $remote_path" >&2; return 1; }
+  remote_cmd="test -f $remote_path"
+  [[ "$must_exec" != true ]] || remote_cmd+=" && test -x $remote_path"
+  remote_cmd+=" && actual=\$(sha256sum $remote_path | awk '{print \$1}') && test \"\$actual\" = $expected"
+  "${ssh[@]}" "$remote_cmd" || { echo "remote upload verification failed: $remote_path" >&2; return 1; }
+  printf 'verified remote_path=%s executable=%s sha256=%s\n' "$remote_path" "$must_exec" "$expected" >> "$upload_log"
+}
+upload_file() {
+  local local_path=$1 remote_path=$2 must_exec=${3:-true}
+  printf 'upload local_path=%s remote_path=%s\n' "$local_path" "$remote_path" >> "$upload_log"
+  scp "${scp_opts[@]}" "$local_path" "root@$ssh_host:$remote_path"
+  if [[ "$must_exec" == true ]]; then "${ssh[@]}" "chmod +x $remote_path"; fi
+  verify_remote_file "$local_path" "$remote_path" "$must_exec"
+}
+upload_tree() {
+  local local_dir=$1 remote_dir=$2 indexed file relative remote_path expected must_exec remote_cmd remote_parent
+  printf 'upload-tree local_path=%s remote_path=%s/\n' "$local_dir" "$remote_dir" >> "$upload_log"
+  while IFS= read -r -d '' indexed; do
+    relative=${indexed#harness/}
+    file="$local_dir/$relative"
+    remote_path="$remote_dir/$relative"
+    remote_parent=${remote_path%/*}
+    expected=$(local_sha256 "$file")
+    must_exec=false
+    [[ ! -x "$file" ]] || must_exec=true
+    [[ "$remote_path" =~ ^/[A-Za-z0-9_./-]+$ ]] || { echo "unsafe remote upload path: $remote_path" >&2; return 1; }
+    "${ssh[@]}" "mkdir -p $remote_parent"
+    scp "${scp_opts[@]}" "$file" "root@$ssh_host:$remote_path"
+    if [[ "$must_exec" == true ]]; then "${ssh[@]}" "chmod +x $remote_path"; fi
+    remote_cmd="test -f $remote_path"
+    [[ "$must_exec" != true ]] || remote_cmd+=" && test -x $remote_path"
+    remote_cmd+=" && actual=\$(sha256sum $remote_path | awk '{print \$1}') && test \"\$actual\" = $expected"
+    "${ssh[@]}" "$remote_cmd" || { echo "remote upload verification failed: $remote_path" >&2; return 1; }
+    printf 'verified remote_path=%s executable=%s sha256=%s\n' "$remote_path" "$must_exec" "$expected" >> "$upload_log"
+  done < <(git -C "$repo" ls-files -z -- harness/)
+}
 host_path=${host_id//[^A-Za-z0-9_-]/_}
+upload_file "$scripts/onstart.sh" /workspace/onstart.sh true
+"${ssh[@]}" 'bash /workspace/onstart.sh'
+upload_file "$scripts/preflight.sh" /workspace/preflight.sh true
 "${ssh[@]}" "bash /workspace/preflight.sh '$gpu' '/workspace/output/hosts/$host_path'"
-vastai copy "local:$scripts/telemetry.sh" "$id:/workspace/telemetry.sh" >/dev/null 2>&1 || { echo 'telemetry upload failed' >&2; exit 1; }
+upload_file "$scripts/telemetry.sh" /workspace/telemetry.sh true
 "${ssh[@]}" "nohup bash /workspace/telemetry.sh '/workspace/output/hosts/$host_path/telemetry.csv' >'/workspace/output/hosts/$host_path/telemetry.log' 2>&1 </dev/null & echo \$! > '/workspace/output/hosts/$host_path/telemetry.pid'"
 if [[ "$mode" == smoke || "$mode" == smoke-kill ]]; then
-  vastai copy "local:$scripts/gpu_bench.sh" "$id:/workspace/gpu_bench.sh" >/dev/null 2>&1 || { echo 'GPU benchmark verifier upload failed' >&2; exit 1; }
-  "${ssh[@]}" 'chmod +x /workspace/gpu_bench.sh'
+  upload_file "$scripts/gpu_bench.sh" /workspace/gpu_bench.sh true
   if [[ "$mode" == smoke-kill ]]; then
+    "${ssh[@]}" 'mkdir -p /workspace/output; sleep 300; curl -fL --retry 3 -o /workspace/tinyllama.gguf https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories15M-q4_0.gguf; /workspace/gpu_bench.sh /workspace/tinyllama.gguf /workspace/output/smoke-bench.json /workspace/output/smoke-bench.log -ngl 999 -p 512 -n 128 -r 1 -o json' &
+    smoke_pid=$!
     touch "$out/kill-test-running"
-    "${ssh[@]}" 'mkdir -p /workspace/output; sleep 300; curl -fL --retry 3 -o /workspace/tinyllama.gguf https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories15M-q4_0.gguf; /workspace/gpu_bench.sh /workspace/tinyllama.gguf /workspace/output/smoke-bench.json /workspace/output/smoke-bench.log -ngl 999 -p 512 -n 128 -r 1 -o json'
+    wait "$smoke_pid"
   else
     "${ssh[@]}" 'mkdir -p /workspace/output; curl -fL --retry 3 -o /workspace/tinyllama.gguf https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories15M-q4_0.gguf; /workspace/gpu_bench.sh /workspace/tinyllama.gguf /workspace/output/smoke-bench.json /workspace/output/smoke-bench.log -ngl 999 -p 512 -n 128 -r 1 -o json; kill "$(cat /workspace/output/telemetry.pid)"'
   fi
@@ -177,13 +240,14 @@ if not card: raise SystemExit('GPU is absent from card registry')
 print(card)
 PY
 )
-  vastai copy "local:$repo/harness/" "$id:/workspace/harness/" >/dev/null 2>&1 || { echo 'harness upload failed' >&2; exit 1; }
+  upload_tree "$repo/harness" /workspace/harness
   "${ssh[@]}" "PATH=/workspace/bin:\$PATH python3 /workspace/harness/scripts/card_runner.py --card-id '$card_id' --run-id '$run_id' --host-id '$host_path' --mode full"
   "${ssh[@]}" "if test -f '/workspace/output/hosts/$host_path/telemetry.pid'; then kill \$(cat '/workspace/output/hosts/$host_path/telemetry.pid') 2>/dev/null || true; fi"
 fi
 copy_dest="$out"
 if [[ "$mode" != card ]]; then copy_dest="$out/results"; fi
-vastai copy "$id:/workspace/output/" "local:$copy_dest/" >/dev/null 2>&1 || { echo 'result pull failed' >&2; exit 1; }
+mkdir -p "$copy_dest"
+scp "${scp_opts[@]}" -r "root@$ssh_host:/workspace/output/." "$copy_dest/" || { echo 'result pull failed' >&2; exit 1; }
 pulled=1
 if [[ "$mode" == card ]]; then
   end_epoch=$(date +%s); end_utc=$(date -u +%FT%TZ); runtime=$((end_epoch-started_epoch))

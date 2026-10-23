@@ -2,12 +2,14 @@
 set -euo pipefail
 active_label=${1:-}
 log=${2:-/dev/null}
+script_dir=$(cd "$(dirname "$0")" && pwd)
+mkdir -p "$(dirname "$log")"
 list_instances() { vastai show instances --raw 2>/dev/null; }
 instances=$(list_instances) || { echo 'instance listing failed' >> "$log"; exit 1; }
 while IFS=$'\t' read -r id label; do
   [[ -n "$id" ]] || continue
   echo "destroying orphan id=$id label=$label" >> "$log"
-  vastai destroy instance "$id" --raw >/dev/null 2>&1 || true
+  "$script_dir/destroy_instance.sh" "$id" "$label" "$log"
 done < <(python3 - "$instances" "$active_label" <<'PY'
 import json,sys
 r=json.loads(sys.argv[1]); r=r if isinstance(r,list) else r.get('instances',[])

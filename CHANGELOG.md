@@ -12,6 +12,9 @@ edition changes. Do not rewrite historical run records.
   required for smoke-gate and first Card 1 benchmark acceptance.
 - Record per-benchmark CUDA device/offload logs and concurrent `nvidia-smi`
   memory samples; reject CPU-only or partial-layer runs.
+- Route all teardown through non-interactive `--yes` destroys with instance-list
+  polling and retries; verify uploaded script hashes and executable bits over
+  SSH/SCP, and cover teardown entry points with a mocked Vast CLI test.
 
 ## 2026-10-21
 

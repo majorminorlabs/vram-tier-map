@@ -2,8 +2,8 @@
 """Invoke Vast create via saved CLI auth; keep output in memory and log only redacted data."""
 import json,re,subprocess,sys
 from pathlib import Path
-run_id,label,offer,image,disk,onstart,logdir=sys.argv[1:]
-p=subprocess.run(['vastai','create','instance',offer,'--image',image,'--disk',disk,'--label',label,'--onstart',onstart,'--ssh','--direct','--cancel-unavail','--raw'],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+run_id,label,offer,image,disk,logdir=sys.argv[1:]
+p=subprocess.run(['vastai','create','instance',offer,'--image',image,'--disk',disk,'--label',label,'--ssh','--direct','--cancel-unavail','--raw'],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 raw=p.stdout
 # Reuse the conservative JSON redactor; it omits opaque responses rather than risking a secret.
 red=subprocess.run([sys.executable,str(Path(__file__).with_name('redact_create_response.py'))],input=raw,stdout=subprocess.PIPE,check=True)

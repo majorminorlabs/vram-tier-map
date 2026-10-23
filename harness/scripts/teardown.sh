@@ -16,7 +16,7 @@ else: print('mismatch')
 PY
 )
 if [[ "$identity" == match ]]; then
-  vastai destroy instance "$id" --raw >/dev/null 2>&1 || true
+  "$script_dir/destroy_instance.sh" "$id" "$label" "$out/teardown.log"
 elif [[ "$identity" == mismatch ]]; then
   echo "refused to destroy mismatched instance id=$id; cleaning by label=$label" >> "$out/teardown.log"
 fi
