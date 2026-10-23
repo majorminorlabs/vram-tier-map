@@ -3,7 +3,9 @@ image_digest: sha256:6b1018ad94124b8f13c9216da98332df41051c2d73ef782a9744836b090
 image_platform: linux/amd64
 llama_cpp_repository: https://github.com/ggml-org/llama.cpp.git
 llama_cpp_commit: 84e66d03218711dfcaa993e5f64a546abe82df9a
-cuda_toolkit: 12.8.1
+cuda_toolkit: 12.2.2
+cuda_max_good_required: 12.2
+minimum_driver_version: 535.54.03
 cmake_build_flags:
   - -DGGML_CUDA=ON
   - -DGGML_NATIVE=OFF

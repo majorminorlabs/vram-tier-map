@@ -81,6 +81,12 @@ if not isinstance(digest,str) or not digest.startswith('sha256:') or len(digest)
 print(name+'@'+digest)
 PY
 )
+read -r cuda_toolkit driver_floor < <(python3 - <<'PY'
+import yaml
+x=yaml.safe_load(open('harness/registry/runtime.yaml'))
+print(x['cuda_toolkit'],x['minimum_driver_version'])
+PY
+)
 "$scripts/watchdog.sh" "$label" "$$" "$deadline" "$state" >/dev/null 2>&1 & wd=$!
 started_epoch=$(date +%s)
 started_utc=$(date -u +%FT%TZ)
@@ -286,13 +292,13 @@ preflight_policy=card
 ram_floor=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["_vtm_ram_floor_gb"])' "$offer")
 transfer_model=$(python3 -c 'import yaml; x=yaml.safe_load(open("harness/registry/models.yaml"))["preflight_transfer"]; print("\t".join([x["url"],str(x["size_bytes"]),x["sha256"]]))')
 IFS=$'\t' read -r transfer_url transfer_size transfer_sha <<< "$transfer_model"
-"${ssh[@]}" "bash /workspace/preflight.sh '$offer_gpu' '$pcie_width' '$native_gen' '/workspace/output/hosts/$host_path' '$preflight_policy' '$instance_cpu_ram' '$ram_floor' '$transfer_url' '$transfer_size' '$transfer_sha'" || preflight_rc=$?
+"${ssh[@]}" "bash /workspace/preflight.sh '$offer_gpu' '$pcie_width' '$native_gen' '/workspace/output/hosts/$host_path' '$preflight_policy' '$instance_cpu_ram' '$ram_floor' '$transfer_url' '$transfer_size' '$transfer_sha' '$cuda_toolkit' '$driver_floor'" || preflight_rc=$?
 if (( preflight_rc != 0 )); then
   if (( preflight_rc != 42 )); then
     echo "ERROR: preflight execution failed with status $preflight_rc; treating as harness/host execution failure" >&2
     exit "$preflight_rc"
   fi
-  if [[ "$mode" == card ]]; then
+  if [[ "$mode" == card || "$mode" == smoke || "$mode" == smoke-kill ]]; then
     mkdir -p "$private/rejected-hosts/$run_id/$host_path"
     "${ssh[@]}" "tar -C '/workspace/output/hosts/$host_path' -cf - ." 2>/dev/null | tar -C "$private/rejected-hosts/$run_id/$host_path" -xf - || true
   fi
@@ -327,7 +333,43 @@ if [[ "$mode" == smoke || "$mode" == smoke-kill ]]; then
     touch "$out/kill-test-running"
     wait "$smoke_pid"
   else
-    "${ssh[@]}" "set -e; mkdir -p /workspace/output; curl -fL --retry 3 -o /workspace/tinyllama.gguf https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories15M-q4_0.gguf; /workspace/gpu_bench.sh /workspace/tinyllama.gguf /workspace/output/smoke-bench.json /workspace/output/smoke-bench.log -ngl 999 -p 512 -n 128 -r 1 -o json; kill \"\$(cat '/workspace/output/hosts/$host_path/telemetry.pid')\""
+    bench_rc=0
+    "${ssh[@]}" "set +e; mkdir -p /workspace/output; curl -fL --retry 3 -o /workspace/tinyllama.gguf https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories15M-q4_0.gguf; fetch_rc=\$?; if (( fetch_rc == 0 )); then /workspace/gpu_bench.sh /workspace/tinyllama.gguf /workspace/output/smoke-bench.json /workspace/output/smoke-bench.log -ngl 999 -p 512 -n 128 -r 1 -o json; bench_rc=\$?; else bench_rc=\$fetch_rc; fi; kill \"\$(cat '/workspace/output/hosts/$host_path/telemetry.pid')\" 2>/dev/null; exit \$bench_rc" || bench_rc=$?
+    if (( bench_rc != 0 )); then
+      mkdir -p "$out/results"
+      if scp "${scp_opts[@]}" -r "root@$ssh_host:/workspace/output/." "$out/results/"; then pulled=1; fi
+      smoke_log="$out/results/smoke-bench.log"
+      cuda_state="$private/cuda-init-streak-${run_id}.json"
+      streak_json=''
+      if [[ -f "$smoke_log" ]] && streak_json=$(python3 "$scripts/cuda_init_streak.py" "$cuda_state" "$smoke_log" 2>/dev/null); then
+        cuda_error=$(python3 -c 'import json,sys;print(json.loads(sys.argv[1])["error"])' "$streak_json")
+        streak_count=$(python3 -c 'import json,sys;print(json.loads(sys.argv[1])["consecutive_count"])' "$streak_json")
+        if (( streak_count >= 2 )); then
+          echo "STOP: two consecutive hosts failed CUDA initialization with the same error: $cuda_error" >&2
+          exit 1
+        fi
+        printf 'host_id=%s machine_id=%s offer_id=%s reason=CUDA initialization failed: %s\n' "$host_id" "$host" "$offer_id" "$cuda_error" >> "$private/failed-host-reasons.tsv"
+        if [[ -n "$host" ]]; then printf '%s\n' "$host" >> "$failed"; sort -u "$failed" -o "$failed"; fi
+        rejected=${VTM_REJECTED_COUNT:-0}
+        if (( rejected + 1 < host_retry_limit )); then
+          echo "CUDA initialization host failure; advancing to another offer ($((rejected + 1))/$host_retry_limit): $cuda_error" >&2
+          "$scripts/teardown.sh" "$id" "$label" "$state" >> "$state/teardown.log" 2>&1 || exit 1
+          if [[ -f "$state/active-instance-meta.json" ]]; then
+            read -r meta_run meta_id meta_hourly meta_started meta_ledger < <(python3 -c 'import json,sys; x=json.load(open(sys.argv[1])); print(x["run_id"],x["instance_id"],x["hourly"],x["started_epoch"],x["ledger"])' "$state/active-instance-meta.json")
+            python3 "$scripts/record_spend.py" "$meta_run" "$meta_id" "$meta_hourly" "$meta_started" "$meta_ledger" >> "$state/spend.log" 2>&1
+            rm -f "$state/active-instance-meta.json"
+          fi
+          id=''; touch "$state/main.done"; wait "$wd" 2>/dev/null || true
+          rm -f "$state/main.done" "$state/active-instance-id.txt"
+          exec env VTM_REJECTED_COUNT="$((rejected + 1))" "$0" "$mode" "$gpu" "$cap" "$out" "$run_id"
+        fi
+        echo "ERROR: $host_retry_limit hosts failed smoke startup/preflight/CUDA checks" >&2
+        exit 1
+      fi
+      echo "smoke benchmark failed (exit $bench_rc); see $smoke_log" >&2
+      exit "$bench_rc"
+    fi
+    rm -f "$private/cuda-init-streak-${run_id}.json"
   fi
 else
   card_id=$(python3 - "$gpu" <<'PY'
@@ -377,8 +419,8 @@ pcie_gen=max((iv(r.get('pcie_gen_current')) for r in loads if iv(r.get('pcie_gen
 quality_path=pathlib.Path(out,'hosts',host_path,'host-quality.json'); quality=json.loads(quality_path.read_text())
 transfer_path=pathlib.Path(out,'hosts',host_path,'pcie-transfer.json'); transfer=json.loads(transfer_path.read_text()) if transfer_path.exists() else {}
 evidence_path=pathlib.Path(out,'first-config-cuda-evidence.json'); cuda_evidence=json.loads(evidence_path.read_text()) if evidence_path.exists() else None
-pcie_context={'pcie_gen_actual':pcie_gen,'pcie_width_actual':pcie_width,'pcie_gen_idle':iv(idle['pcie_gen_current']),'pcie_gen_max':max((iv(r['pcie_gen_max']) for r in pcie if iv(r['pcie_gen_max']) is not None),default=None),'pcie_gen_hostmax':max((iv(r['pcie_gen_hostmax']) for r in pcie if iv(r['pcie_gen_hostmax']) is not None),default=None),'pcie_width_idle':iv(idle['pcie_width_current']),'pcie_width_max':max((iv(r['pcie_width_max']) for r in pcie if iv(r['pcie_width_max']) is not None),default=None),'pcie_width_hostmax':max((iv(r['pcie_width_hostmax']) for r in pcie if iv(r['pcie_width_hostmax']) is not None),default=None),'power_limit_w':quality.get('power_limit_w'),'power_default_limit_w':quality.get('power_default_limit_w'),'pcie_h2d_gbps':transfer.get('measured_h2d_gbps')}
-meta={'card_id':card_id,'run_id':run_id,'tier':tier,'llama_cpp_commit':cfg['llama_cpp_commit'],'image_digest':digest,'image':image,'harness_git_sha':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'schema_version':'1.4','methodology_version':'v1.2','first_config_cuda_evidence':cuda_evidence,'host_replication':{'status':host_replication,'eligible_host_count':int(eligible_host_count)},'hosts_used':[{'host_id':host_id,'machine_id':machine_id,'instance_cpu_ram':instance_cpu_ram,'verified_status':verified_status,**pcie_context,'pcie_native_gen':native_card['native_pcie_gen'],'pcie_native_width':native_card['native_pcie_width'],'pcie_gen3_on_gen4_card':pcie_gen==3 and native_card['native_pcie_gen']==4}],'wall_clock':{'start_utc':start,'end_utc':end,'seconds':int(runtime)},'instances':[{'instance_id':instance_id,'label':label,'host_id':host_id,'machine_id':machine_id,'hourly_rate_usd':float(hourly),'actual_cost_usd':round(actual,6),'cost_source':source}],'cost_usd':round(actual,6)}
+pcie_context={'pcie_gen_actual':pcie_gen,'pcie_width_actual':pcie_width,'pcie_gen_idle':iv(idle['pcie_gen_current']),'pcie_gen_max':max((iv(r['pcie_gen_max']) for r in pcie if iv(r['pcie_gen_max']) is not None),default=None),'pcie_gen_hostmax':max((iv(r['pcie_gen_hostmax']) for r in pcie if iv(r['pcie_gen_hostmax']) is not None),default=None),'pcie_width_idle':iv(idle['pcie_width_current']),'pcie_width_max':max((iv(r['pcie_width_max']) for r in pcie if iv(r['pcie_width_max']) is not None),default=None),'pcie_width_hostmax':max((iv(r['pcie_width_hostmax']) for r in pcie if iv(r['pcie_width_hostmax']) is not None),default=None),'power_limit_w':quality.get('power_limit_w'),'power_default_limit_w':quality.get('power_default_limit_w'),'pcie_h2d_gbps':transfer.get('measured_h2d_gbps'),'driver_version':quality.get('driver_version'),'host_cuda_max':quality.get('host_cuda_max')}
+meta={'card_id':card_id,'run_id':run_id,'tier':tier,'llama_cpp_commit':cfg['llama_cpp_commit'],'image_digest':digest,'image':image,'cuda_toolkit':cfg.get('cuda_toolkit'),'minimum_driver_version':cfg.get('minimum_driver_version'),'harness_git_sha':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'schema_version':'1.5','methodology_version':'v1.2','first_config_cuda_evidence':cuda_evidence,'host_replication':{'status':host_replication,'eligible_host_count':int(eligible_host_count)},'hosts_used':[{'host_id':host_id,'machine_id':machine_id,'instance_cpu_ram':instance_cpu_ram,'verified_status':verified_status,**pcie_context,'pcie_native_gen':native_card['native_pcie_gen'],'pcie_native_width':native_card['native_pcie_width'],'pcie_gen3_on_gen4_card':pcie_gen==3 and native_card['native_pcie_gen']==4}],'wall_clock':{'start_utc':start,'end_utc':end,'seconds':int(runtime)},'instances':[{'instance_id':instance_id,'label':label,'host_id':host_id,'machine_id':machine_id,'hourly_rate_usd':float(hourly),'actual_cost_usd':round(actual,6),'cost_source':source}],'cost_usd':round(actual,6)}
 pathlib.Path(out,'run.json').write_text(json.dumps(meta,indent=2)+'\n')
 print('run metadata saved; cost source='+source)
 PY

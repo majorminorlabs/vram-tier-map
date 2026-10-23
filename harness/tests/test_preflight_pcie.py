@@ -12,7 +12,7 @@ NVIDIA=r'''#!/usr/bin/env python3
 import os, pathlib, sys
 a=' '.join(sys.argv[1:]); marker=pathlib.Path(os.environ['LOAD_MARKER'])
 width=os.environ['MOCK_WIDTH']; power=os.environ['MOCK_POWER']; default=os.environ['MOCK_DEFAULT']
-if a=='-q': print('mock nvidia-smi -q')
+if a=='-q': print(f"Driver Version : {os.environ.get('MOCK_DRIVER','535.154.05')}\nCUDA Version : {os.environ.get('MOCK_CUDA_MAX','12.2')}")
 elif '--query-gpu=name,uuid,memory.total,pci.bus_id,power.limit,power.default_limit' in a: print(f"{os.environ['MOCK_GPU']}, GPU-1, 24576 MiB, 00000000:01:00.0, {power} W, {default} W")
 elif '--query-compute-apps=' in a: print('No running processes found')
 elif '--query-gpu=pcie.link.gen.current,pcie.link.gen.max,pcie.link.width.current,pcie.link.width.max' in a:
@@ -26,7 +26,7 @@ else: sys.exit(2)
 def executable(path, content):
     path.write_text(content); path.chmod(0o755); return path
 
-def run(policy='card', gpu='RTX 3090', width=16, gen=4, power=100, default=100, load_ms=100, hostwidth=None):
+def run(policy='card', gpu='RTX 3090', width=16, gen=4, power=100, default=100, load_ms=100, hostwidth=None, driver='535.154.05', cuda_max='12.2'):
     with tempfile.TemporaryDirectory() as td:
         root=Path(td); bindir=root/'bin'; bindir.mkdir(); marker=root/'busy'
         executable(bindir/'nvidia-smi',NVIDIA)
@@ -36,7 +36,7 @@ def run(policy='card', gpu='RTX 3090', width=16, gen=4, power=100, default=100, 
         executable(bindir/'llama-bench',bench)
         model=root/'tiny.gguf'; model.write_bytes(b'mock transfer bytes')
         out=root/'out'; env=os.environ.copy()
-        env.update({'PATH':f'{bindir}:{env["PATH"]}','LOAD_MARKER':str(marker),'MOCK_WIDTH':str(width),'MOCK_GEN':str(gen),'MOCK_POWER':str(power),'MOCK_DEFAULT':str(default),'MOCK_GPU':gpu,'VTM_PREFLIGHT_MODEL':str(model),'VTM_LLAMA_BENCH':str(bindir/'llama-bench'),'VTM_PREFLIGHT_TRANSFER_BYTES':'1000000000','VTM_TRANSFER_REPS':'1'})
+        env.update({'PATH':f'{bindir}:{env["PATH"]}','LOAD_MARKER':str(marker),'MOCK_WIDTH':str(width),'MOCK_GEN':str(gen),'MOCK_POWER':str(power),'MOCK_DEFAULT':str(default),'MOCK_GPU':gpu,'MOCK_DRIVER':driver,'MOCK_CUDA_MAX':cuda_max,'MOCK_UTIL':'25','MOCK_PSTATE':'P0','VTM_PREFLIGHT_MODEL':str(model),'VTM_LLAMA_BENCH':str(bindir/'llama-bench'),'VTM_PREFLIGHT_TRANSFER_BYTES':'1000000000','VTM_TRANSFER_REPS':'1'})
         if hostwidth is not None: env['MOCK_HOSTWIDTH']=str(hostwidth)
         proc=subprocess.run(['bash',str(PREFLIGHT),gpu,str(width),'4',str(out),policy,'64000','32','unused','18','unused'],capture_output=True,text=True,env=env,timeout=10)
         csv=(out/'gpu-preflight.csv').read_text() if (out/'gpu-preflight.csv').exists() else ''
@@ -49,6 +49,13 @@ def test_card_power_at_90_percent_passes_with_h2d():
     assert 'pcie_h2d_gbps' in q and '10.0' in q
     assert ',transfer,' in csv and 'gpu_util_percent' in csv and 'pstate' in csv
     assert '10.000000' in csv
+    import csv as csv_module
+    rows=list(csv_module.DictReader(csv.splitlines()))
+    assert all(row['gpu_util_percent']=='25' and row['pstate']=='P0' for row in rows if row['phase']=='transfer')
+
+def test_driver_below_cuda_requirement_fails_fast():
+    p,_,_=run(driver='535.53.00',cuda_max='12.2')
+    assert p.returncode==42 and 'below the pinned image requirement' in p.stderr,p.stderr
 
 def test_card_power_below_90_percent_rejected():
     p,_,_=run(power=89,default=100)
@@ -75,9 +82,10 @@ def test_smoke_warns_but_ignores_power_ram_and_pcie_quality():
 
 if __name__=='__main__':
     test_card_power_at_90_percent_passes_with_h2d()
+    test_driver_below_cuda_requirement_fails_fast()
     test_card_power_below_90_percent_rejected()
     test_card_insufficient_h2d_rejected()
     test_native_x8_passes_with_width_hostmax_8()
     test_native_width_hostmax_mismatch_rejected()
     test_smoke_warns_but_ignores_power_ram_and_pcie_quality()
-    print('preflight_quality_and_pcie_traffic: 6 cases passed')
+    print('preflight_quality_and_pcie_traffic: 7 cases passed')

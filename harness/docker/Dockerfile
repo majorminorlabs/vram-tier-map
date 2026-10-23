@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.8.1-devel-ubuntu22.04@sha256:a99a1860ba8e2916e5c3e73b72ec4c4301653a84586e05bfc9a2aa2d58027e97 AS build
+FROM nvidia/cuda:12.2.2-devel-ubuntu22.04@sha256:5f603101462baa721ff6ddc44af82f6e9ba7cbd92a424c9f9f348e6e9d6d64c3 AS build
 
 ARG LLAMA_CPP_COMMIT=84e66d03218711dfcaa993e5f64a546abe82df9a
 ENV DEBIAN_FRONTEND=noninteractive
@@ -29,7 +29,7 @@ RUN cmake -S /opt/llama.cpp -B /build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     && cmake --build /build --target llama-bench llama-server llama-cli llama-tokenize -j "$(nproc)"
 
-FROM nvidia/cuda:12.8.1-runtime-ubuntu22.04
+FROM nvidia/cuda:12.2.2-runtime-ubuntu22.04@sha256:b12fafc35981193fae68a639ffcce21c453ff1b47837d643b0094582afe25cd3
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \

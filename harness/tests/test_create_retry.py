@@ -13,8 +13,8 @@ log=pathlib.Path(os.environ['MOCK_LOG'])
 with log.open('a') as f: f.write(json.dumps(args)+'\n')
 if args[:3]==['search','offers','--raw']:
     offers=[
-      {'id':101,'machine_id':1,'host_id':1,'gpu_name':'RTX 3090','num_gpus':1,'cpu_ram':64000,'reliability':.99,'verified':True,'rentable':True,'dph_total':.1,'pci_gen':4,'pcie_bw':31.5,'disk_space':150},
-      {'id':102,'machine_id':2,'host_id':2,'gpu_name':'RTX 3090','num_gpus':1,'cpu_ram':64000,'reliability':.99,'verified':True,'rentable':True,'dph_total':.11,'pci_gen':4,'pcie_bw':31.5,'disk_space':150}]
+      {'id':101,'machine_id':1,'host_id':1,'gpu_name':'RTX 3090','num_gpus':1,'cpu_ram':64000,'reliability':.99,'verified':True,'rentable':True,'dph_total':.1,'pci_gen':4,'pcie_bw':31.5,'disk_space':150,'cuda_max_good':12.2,'driver_version':'535.154.05'},
+      {'id':102,'machine_id':2,'host_id':2,'gpu_name':'RTX 3090','num_gpus':1,'cpu_ram':64000,'reliability':.99,'verified':True,'rentable':True,'dph_total':.11,'pci_gen':4,'pcie_bw':31.5,'disk_space':150,'cuda_max_good':12.2,'driver_version':'535.154.05'}]
     print(json.dumps(offers))
 elif args[:3]==['create','instance','101']:
     label=args[args.index('--label')+1]
@@ -77,7 +77,7 @@ def test_disk_filter():
     from offer_filter import filter_offers
     card=[{'gpu_name':'RTX 3090','disk_gb':150,'native_pcie_gen':4,'native_pcie_width':16}]
     low={'id':1,'machine_id':1,'gpu_name':'RTX 3090','num_gpus':1,'cpu_ram':64000,'reliability':.99,'verified':True,'rentable':True,'dph_total':.1,'pci_gen':4,'pcie_bw':31.5,'disk_space':149}
-    ok={**low,'id':2,'disk_space':150}
+    ok={**low,'id':2,'disk_space':150,'cuda_max_good':12.2,'driver_version':'535.154.05'}
     assert filter_offers([low],.15,'any',card) is None
     assert filter_offers([low,ok],.15,'any',card)['id']==2
     at_reliability_floor={**ok,'id':5,'reliability':.97,'pcie_bw':8}
@@ -90,6 +90,8 @@ def test_disk_filter():
     bw_below_x16={**ok,'id':4,'pcie_bw':7.99}
     assert filter_offers([unreliable],.15,'any',card) is None
     assert filter_offers([bw_below_x16],.15,'any',card) is None
+    assert filter_offers([{**ok,'id':8,'cuda_max_good':12.1,'driver_version':'535.53.00'}],.15,'any',card) is None
+    assert filter_offers([{**ok,'id':9,'cuda_max_good':None,'driver_version':'535.154.05'}],.15,'any',card)['id']==9
     x8_card=[{'gpu_name':'RTX 4060 Ti','disk_gb':100,'native_pcie_gen':4,'native_pcie_width':8}]
     x8_offer={**ok,'gpu_name':'RTX 4060 Ti','disk_space':100,'pcie_bw':6}
     assert filter_offers([x8_offer],.15,'any',x8_card)['id']==2
@@ -118,7 +120,7 @@ def test_per_config_ram_requirement():
 def test_smoke_requires_registered_gpu():
     sys.path.insert(0,str(SCRIPTS))
     from offer_filter import filter_offers
-    offer={'id':3,'machine_id':3,'gpu_name':'RTX A2000','num_gpus':1,'cpu_ram':64000,'reliability':.99,'verified':True,'rentable':True,'dph_total':.11,'pci_gen':4,'pcie_bw':23.9,'disk_space':690}
+    offer={'id':3,'machine_id':3,'gpu_name':'RTX A2000','num_gpus':1,'cpu_ram':64000,'reliability':.99,'verified':True,'rentable':True,'dph_total':.11,'pci_gen':4,'pcie_bw':23.9,'disk_space':690,'cuda_max_good':12.2,'driver_version':'535.154.05'}
     quadro={'id':4,'machine_id':4,'gpu_name':'Q RTX 4000','num_gpus':1,'cpu_ram':64000,'reliability':.99,'verified':True,'rentable':True,'dph_total':.108,'pci_gen':3,'pcie_bw':10.9,'disk_space':256}
     assert filter_offers([offer],.15,'any',[],smoke=False) is None
     selected=filter_offers([offer,quadro],.15,'any',[],smoke=True)

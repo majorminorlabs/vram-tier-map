@@ -21,22 +21,20 @@
 The pinned llama.cpp commit is release tag `b11779`. The corresponding official
 GHCR image tag (`full-cuda-b11779` / `full-cuda12-b11779`) was not available when
 the runtime was checked, so the runtime image is built from that exact source
-commit by GitHub Actions. Its CUDA build sets
+commit by GitHub Actions with CUDA Toolkit 12.2.2 for build and runtime. Its CUDA build sets
 `CMAKE_CUDA_ARCHITECTURES="75;86;89"` and `GGML_NATIVE=OFF`; it includes
 `llama-bench`, `llama-server`, `llama-cli`, and `llama-tokenize`. The published
 image is pulled by immutable digest. The digest is recorded in
 `harness/registry/runtime.yaml` and each run's `run.json`.
-Published image: `ghcr.io/majorminorlabs/vtm-llamacpp@sha256:6b1018ad94124b8f13c9216da98332df41051c2d73ef782a9744836b09033d3c`.
-The linux/amd64 manifest has 2.230 GiB of compressed layers and an estimated
-3.631 GiB uncompressed layer total, calculated from each gzip layer's ISIZE
-trailer. The runtime stage already uses the CUDA runtime base; no image-base
-change is needed.
+CUDA 12.2 requires Linux driver >=535.54.03 ([NVIDIA CUDA Toolkit release notes](https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/)). Record the
+published image size in `CHANGELOG.md` after the rebuild.
 
 The CUDA `libcuda.so` stub is used only in the build stage to link the CUDA
 binaries. Its build-stage `libcuda.so.1` symlink and linker search flags are not
 copied into the runtime stage. The runtime stage does not add the stub to
-`LD_LIBRARY_PATH` or the dynamic loader configuration; the NVIDIA container
-runtime supplies the real driver library to the running container.
+`LD_LIBRARY_PATH` or the dynamic loader configuration; no `cuda-compat`
+libraries are installed in the runtime stage. The NVIDIA container runtime
+supplies the real driver library to the running container.
 
 ## GPU execution gate
 
@@ -99,6 +97,11 @@ Native PCIe specifications are versioned in `harness/registry/cards.yaml` for ea
 
 Offer qualification uses each card's `ram_floor_gb` and `vast_price_cap_usd_per_hour` in `harness/registry/cards.yaml`, reliability >=0.97, and does not require verified status. The same RAM floor is checked against raw Vast `cpu_ram` in the offer response; Vast reports this field in MB. Before each model/quant/configuration, estimate VRAM fit as the smaller of GGUF size and currently free GPU memory, then require free host RAM >= max(0, GGUF size - VRAM fit) + 8 GiB. If not, log `skipped: host RAM` and continue to the next configuration. Each result row records host total RAM, raw instance `cpu_ram`, free RAM at load, and host verification status; `run.json` records verification status per host. Before a card rental, run the offer funnel for that card only. Zero eligible offers stops that card before rental. One eligible host is allowed; record host replication as `unavailable` in `run.json`. The harness downloads and evaluates one model at a time, removes that model's GGUF before moving to the next, and records free disk before each download. It aborts before a download if available space is less than the GGUF size plus 10 GiB. Failed create responses are retried on the next eligible offer up to three offers per host attempt, after label/orphan cleanup; every create response and stderr are stored privately after token redaction. The private per-session spend ledger is checked against the $6 session ceiling before a rental, with smoke runs capped at 30 minutes and card runs at the six-hour hard limit.
 
+Vast's `search offers` result schema exposes `cuda_max_good` and `driver_version`
+([Vast CLI source](https://github.com/vast-ai/vast-cli/blob/master/vast.py)). The funnel
+reports this CUDA compatibility filter after the PCIe floor; it accepts a sufficient
+`cuda_max_good` or a `driver_version` meeting the image's documented minimum.
+
 Instance startup is polled every 20 seconds. The private log records `actual_status`,
 `status_msg`, and any image-pull progress. Eight minutes without a status or pull
 progress update is a host startup stall; progressing pulls may continue for up to
@@ -113,8 +116,13 @@ Smoke mode treats PCIe, power-limit, and host-RAM checks as warn-only and logs t
 observations. Its hard gates remain successful creation and transition to `running`, CUDA
 offload evidence from the smoke benchmark, pulled results, normal teardown with zero
 instances, and the independent watchdog destroying a SIGKILLed run within two minutes
-with zero instances. Startup stalls and dead hosts are host failures; exclude them and
-advance to another offer.
+with zero instances. The CUDA toolkit and minimum supported driver are pinned in
+`runtime.yaml`; offer filtering uses Vast's `cuda_max_good` or `driver_version`, and
+preflight records the actual driver and maximum CUDA version. A below-floor host is
+rejected and replaced. A CUDA initialization error is a host failure, but two
+consecutive hosts returning the same CUDA-init error stop the gate as an image problem.
+Startup stalls and dead hosts are host failures; exclude them and advance to another
+offer.
 
 For card runs, the current power limit passes when it is at least 90% of the default power
 limit. Record both watt values in every result row.

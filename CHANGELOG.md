@@ -2,6 +2,17 @@
 
 ## 2026-10-23
 
+- Switched the pinned llama.cpp image build to CUDA 12.2.2 build and runtime stages,
+  preserving the `75;86;89` architecture list and driver-stub build-only setup.
+  CUDA compatibility filtering checks Vast's `cuda_max_good` and `driver_version`
+  offer fields (listed in the [Vast CLI source](https://github.com/vast-ai/vast-cli/blob/master/vast.py));
+  preflight records both the NVIDIA driver and reported maximum CUDA version.
+  Two consecutive identical CUDA initialization failures now stop smoke as an
+  image issue. Result schema 1.5 records driver and CUDA versions per row and in
+  `run.json`.
+- PCIe transfer samples retain GPU utilization and P-state at each sample; mocked
+  preflight coverage asserts both values are populated.
+
 - Rebuilt the public CUDA image on GitHub Actions in 43 minutes 45 seconds after
   the smoke gate found missing runtime `libgomp.so.1`. New digest:
   `sha256:6b1018ad94124b8f13c9216da98332df41051c2d73ef782a9744836b09033d3c`.

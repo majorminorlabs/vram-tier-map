@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-RESULT_FIELDS = ["card_id", "run_id", "model_id", "quant", "task_set_version", "fit_max_ctx", "kv_type", "n_cpu_moe", "peak_vram_gb", "peak_ram_gb", "prompt_tps_64k", "decode_tps_64k", "decode_tps_120k", "ttft_64k_ms", "strict_pass_rate", "task_wall_clock_s", "speed_cv_percent", "cost_usd", "pcie_gen_actual", "pcie_width_actual", "pcie_gen_idle", "pcie_gen_max", "pcie_gen_hostmax", "pcie_width_idle", "pcie_width_max", "pcie_width_hostmax", "power_limit_w", "power_default_limit_w", "pcie_h2d_gbps", "host_ram_total_gb", "instance_cpu_ram", "free_ram_at_load_gb", "verified_status", "flags"]
+RESULT_FIELDS = ["card_id", "run_id", "model_id", "quant", "task_set_version", "fit_max_ctx", "kv_type", "n_cpu_moe", "peak_vram_gb", "peak_ram_gb", "prompt_tps_64k", "decode_tps_64k", "decode_tps_120k", "ttft_64k_ms", "strict_pass_rate", "task_wall_clock_s", "speed_cv_percent", "cost_usd", "pcie_gen_actual", "pcie_width_actual", "pcie_gen_idle", "pcie_gen_max", "pcie_gen_hostmax", "pcie_width_idle", "pcie_width_max", "pcie_width_hostmax", "power_limit_w", "power_default_limit_w", "pcie_h2d_gbps", "driver_version", "host_cuda_max", "host_ram_total_gb", "instance_cpu_ram", "free_ram_at_load_gb", "verified_status", "flags"]
 PICK_FIELDS = ["card_id", "tier", "pick_model_id", "pick_quant", "runner_up_model_id", "runner_up_quant", "strict_pass_rate", "decode_tps_64k", "ttft_64k_ms", "flags"]
 
 

@@ -8,6 +8,7 @@ from offer_filter import filter_offers
 run_id, label, image, cap, gpu, mode, registry_path, private, failed_path = sys.argv[1:]
 private = Path(private); diagnostics = private / 'create-responses'; diagnostics.mkdir(parents=True, exist_ok=True)
 registry = yaml.safe_load(Path(registry_path).read_text())['cards']
+runtime = yaml.safe_load((Path(__file__).parents[2] / 'harness/registry/runtime.yaml').read_text())
 min_disk = min(int(c['disk_gb']) for c in registry) if gpu == 'any' else int(next(c['disk_gb'] for c in registry if c['gpu_name'] == gpu))
 min_ram = min(int(c.get('ram_floor_gb',32)) for c in registry) if gpu == 'any' else int(next(c.get('ram_floor_gb',32) for c in registry if c['gpu_name'] == gpu))
 skip_path = diagnostics / f'{run_id}.skip-offers'
@@ -40,7 +41,9 @@ for attempt in range(1, 4):
     except Exception:
         errors.append('offer search returned non-JSON output')
         break
-    offer = filter_offers(raw, cap, gpu, registry, skipped, failed, mode in ('smoke','smoke-kill'))
+    offer = filter_offers(raw, cap, gpu, registry, skipped, failed,
+                          mode in ('smoke','smoke-kill'), runtime['cuda_max_good_required'],
+                          runtime['minimum_driver_version'])
     if offer is None:
         errors.append('no eligible offer remains after disk and hardware filters')
         break

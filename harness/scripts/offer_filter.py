@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Select the cheapest eligible offer from Vast search JSON."""
 import json, os, sys, yaml
+from cuda_compat import offer_supports_cuda
 
 def verified_status(offer):
     value = offer.get('verified', offer.get('verification', offer.get('vericode', 'unknown')))
     if isinstance(value, bool): return 'verified' if value else 'unverified'
     return str(value)
 
-def filter_offers(raw, cap, requested_gpu, cards, skipped=(), failed=(), smoke=False):
+def filter_offers(raw, cap, requested_gpu, cards, skipped=(), failed=(), smoke=False,
+                  cuda_toolkit='12.2', driver_minimum='535.54.03'):
     offers = raw if isinstance(raw, list) else raw.get('offers', [])
     supported = {card['gpu_name']: card for card in cards}
     # Smoke and card runs both draw exclusively from the versioned card registry.
@@ -21,6 +23,8 @@ def filter_offers(raw, cap, requested_gpu, cards, skipped=(), failed=(), smoke=F
         disk_gb = int(card['disk_gb'])
         ram_floor_gb = int(card.get('ram_floor_gb', 32))
         if str(offer.get('id', '')) in skipped or str(offer.get('machine_id', '')) in failed:
+            continue
+        if not offer_supports_cuda(offer, cuda_toolkit, driver_minimum):
             continue
         if int(offer.get('num_gpus', 0)) != 1:
             continue
@@ -51,11 +55,14 @@ def filter_offers(raw, cap, requested_gpu, cards, skipped=(), failed=(), smoke=F
     return pool[0]
 
 if __name__ == '__main__':
-    cap, requested_gpu, registry_path, skip_path, failed_path = sys.argv[1:]
+    cap, requested_gpu, registry_path, skip_path, failed_path, runtime_path = sys.argv[1:7]
     raw = json.load(sys.stdin)
     cards = yaml.safe_load(open(registry_path))['cards']
     skipped = open(skip_path).read().split() if os.path.exists(skip_path) else []
     failed = open(failed_path).read().split() if os.path.exists(failed_path) else []
-    selected = filter_offers(raw, cap, requested_gpu, cards, skipped, failed, len(sys.argv) > 6 and sys.argv[6] == 'smoke')
+    runtime = yaml.safe_load(open(runtime_path))
+    selected = filter_offers(raw, cap, requested_gpu, cards, skipped, failed,
+                             len(sys.argv) > 7 and sys.argv[7] == 'smoke',
+                             runtime['cuda_max_good_required'], runtime['minimum_driver_version'])
     if selected is None: raise SystemExit(1)
     print(json.dumps(selected))

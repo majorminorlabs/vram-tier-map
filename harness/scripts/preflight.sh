@@ -10,8 +10,32 @@ ram_floor_gb="${7:-32}"
 transfer_url="${8:-https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/5ab33fa94d1d04e903623ae72c95d1696f09f9e8/Llama-3.2-3B-Instruct-Q4_K_M.gguf}"
 transfer_size="${9:-2019377696}"
 transfer_sha="${10:-6c1a2b41161032677be168d354123594c0e6e67d2b9227c84f296ad037c728ff}"
+required_cuda="${11:-12.2.2}"
+minimum_driver="${12:-535.54.03}"
 mkdir -p "$out"
 nvidia-smi -q > "$out/nvidia-smi-q.txt"
+python3 - "$out/nvidia-smi-q.txt" "$required_cuda" "$minimum_driver" "$out/host-driver.json" <<'PY'
+import json,re,sys
+def version(value):
+    m=re.search(r'\d+(?:\.\d+)+',value or '')
+    return tuple(map(int,m.group(0).split('.'))) if m else None
+def at_least(a,b):
+    a,b=version(a),version(b)
+    if a is None or b is None: return False
+    n=max(len(a),len(b)); return a+(0,)*(n-len(a)) >= b+(0,)*(n-len(b))
+path,target,driver_floor,out=sys.argv[1:]
+text=open(path,errors='replace').read()
+driver=re.search(r'^Driver Version\s*:\s*(\S+)',text,re.M)
+cuda=re.search(r'^CUDA Version\s*:\s*(\S+)',text,re.M)
+driver=driver.group(1) if driver else None; cuda=cuda.group(1) if cuda else None
+cuda_floor='.'.join(target.split('.')[:2])
+record={'driver_version':driver,'host_cuda_max':cuda,'required_cuda_toolkit':target,'minimum_driver_version':driver_floor,'driver_pass':at_least(driver,driver_floor),'cuda_pass':at_least(cuda,cuda_floor)}
+json.dump(record,open(out,'w'),indent=2); open(out,'a').write('\n')
+print(f"host NVIDIA driver={driver or 'unknown'} max CUDA={cuda or 'unknown'} required CUDA={target} driver floor={driver_floor}")
+if not record['driver_pass'] or not record['cuda_pass']:
+    print('preflight failed: NVIDIA driver or max supported CUDA is below the pinned image requirement',file=sys.stderr)
+    raise SystemExit(42)
+PY
 lscpu > "$out/lscpu.txt"
 if [[ -r /proc/meminfo ]]; then cp /proc/meminfo "$out/meminfo.txt"; else printf 'MemTotal: unavailable\n' > "$out/meminfo.txt"; fi
 nvidia-smi --query-gpu=name,uuid,memory.total,pci.bus_id,power.limit,power.default_limit --format=csv,noheader,nounits > "$out/gpu-info.csv"
@@ -48,12 +72,12 @@ sample_pcie() {
 }
 sample_pcie idle
 
-python3 - "$expected_gpu" "$policy" "$ram_floor_gb" "$instance_cpu_ram" "$out/gpu-info.csv" "$out/gpu-processes.csv" "$out/vmstat.txt" "$out/meminfo.txt" "$out/host-quality.json" <<'PY'
+python3 - "$expected_gpu" "$policy" "$ram_floor_gb" "$instance_cpu_ram" "$out/gpu-info.csv" "$out/gpu-processes.csv" "$out/vmstat.txt" "$out/meminfo.txt" "$out/host-quality.json" "$out/host-driver.json" <<'PY'
 import csv, json, sys
 def fail(message):
     print(message, file=sys.stderr)
     raise SystemExit(42)
-expected, policy, ram_floor, cpu_ram, gpu_file, proc_file, vm_file, mem_file, quality_file = sys.argv[1:]
+expected, policy, ram_floor, cpu_ram, gpu_file, proc_file, vm_file, mem_file, quality_file, driver_file = sys.argv[1:]
 ram_floor = float(ram_floor)
 rows = list(csv.reader(open(gpu_file, newline="")))
 if len(rows) != 1 or len(rows[0]) != 6:
@@ -83,7 +107,8 @@ total_gb=mem.get('MemTotal'); free_gb=mem.get('MemAvailable')
 try: offer_ram_gb=float(cpu_ram)/1000
 except (TypeError, ValueError): offer_ram_gb=None
 ram_ok=offer_ram_gb is not None and offer_ram_gb >= ram_floor
-quality={'gpu_name':name,'power_limit_w':power_w,'power_default_limit_w':default_w,'power_ratio':power_w/default_w if power_w is not None and default_w else None,'power_pass':power_ok,'host_ram_total_gb':total_gb,'free_ram_at_preflight_gb':free_gb,'instance_cpu_ram':cpu_ram,'ram_floor_gb':ram_floor,'ram_pass':ram_ok,'cpu_idle_percent':idle}
+driver=json.load(open(driver_file))
+quality={'gpu_name':name,'power_limit_w':power_w,'power_default_limit_w':default_w,'power_ratio':power_w/default_w if power_w is not None and default_w else None,'power_pass':power_ok,'host_ram_total_gb':total_gb,'free_ram_at_preflight_gb':free_gb,'instance_cpu_ram':cpu_ram,'ram_floor_gb':ram_floor,'ram_pass':ram_ok,'cpu_idle_percent':idle,'driver_version':driver['driver_version'],'host_cuda_max':driver['host_cuda_max'],'required_cuda_toolkit':driver['required_cuda_toolkit']}
 with open(quality_file,'w') as f: json.dump(quality,f,indent=2); f.write('\n')
 if policy in ('smoke','smoke-kill'):
     if not power_ok: print(f"WARNING: smoke host power quality below 90% default or unavailable ({power}/{default}); continuing")
