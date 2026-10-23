@@ -296,9 +296,16 @@ for key in ('actual_cost','total_cost','cost_usd','billed_amount','dollars_spent
 if actual is None: actual=float(hourly)*int(runtime)/3600; source='hourly_rate_times_runtime_estimate'
 cards=json.load(open('harness/registry/cards.yaml'))['cards']; tier=next(c['tier'] for c in cards if c['card_id']==card_id)
 host_csv=pathlib.Path(out,'hosts',host_path,'gpu-preflight.csv')
-with host_csv.open(newline='') as f: pcie=next(csv.reader(f))
-pcie_gen=int(pcie[4].strip()); pcie_width=int(pcie[6].strip())
-meta={'card_id':card_id,'run_id':run_id,'tier':tier,'llama_cpp_commit':cfg['llama_cpp_commit'],'image_digest':digest,'image':image,'harness_git_sha':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'schema_version':'1.1','methodology_version':'v1','hosts_used':[{'host_id':host_id,'machine_id':machine_id,'pcie_gen_actual':pcie_gen,'pcie_width_actual':pcie_width,'pcie_native_gen':next(c['native_pcie_gen'] for c in cards if c['card_id']==card_id),'pcie_native_width':next(c['native_pcie_width'] for c in cards if c['card_id']==card_id),'pcie_gen3_on_gen4_card':pcie_gen==3 and next(c['native_pcie_gen'] for c in cards if c['card_id']==card_id)==4}],'wall_clock':{'start_utc':start,'end_utc':end,'seconds':int(runtime)},'instances':[{'instance_id':instance_id,'label':label,'host_id':host_id,'machine_id':machine_id,'hourly_rate_usd':float(hourly),'actual_cost_usd':round(actual,6),'cost_source':source}],'cost_usd':round(actual,6)}
+with host_csv.open(newline='') as f: pcie=list(csv.DictReader(f))
+def iv(value):
+ try: return int(value)
+ except (TypeError,ValueError): return None
+idle=next(r for r in pcie if r['phase']=='idle'); loads=[r for r in pcie if r['phase']=='load']
+native_card=next(c for c in cards if c['card_id']==card_id)
+under=next(r for r in loads if iv(r['pcie_gen_current']) is not None and iv(r['pcie_gen_current'])>=3 and iv(r['pcie_width_current'])==native_card['native_pcie_width'])
+pcie_gen=iv(under['pcie_gen_current']); pcie_width=iv(under['pcie_width_current'])
+pcie_context={'pcie_gen_actual':pcie_gen,'pcie_width_actual':pcie_width,'pcie_gen_idle':iv(idle['pcie_gen_current']),'pcie_gen_max':max((iv(r['pcie_gen_max']) for r in pcie if iv(r['pcie_gen_max']) is not None),default=None),'pcie_gen_hostmax':max((iv(r['pcie_gen_hostmax']) for r in pcie if iv(r['pcie_gen_hostmax']) is not None),default=None),'pcie_width_idle':iv(idle['pcie_width_current']),'pcie_width_max':max((iv(r['pcie_width_max']) for r in pcie if iv(r['pcie_width_max']) is not None),default=None)}
+meta={'card_id':card_id,'run_id':run_id,'tier':tier,'llama_cpp_commit':cfg['llama_cpp_commit'],'image_digest':digest,'image':image,'harness_git_sha':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'schema_version':'1.2','methodology_version':'v1','hosts_used':[{'host_id':host_id,'machine_id':machine_id,**pcie_context,'pcie_native_gen':native_card['native_pcie_gen'],'pcie_native_width':native_card['native_pcie_width'],'pcie_gen3_on_gen4_card':pcie_gen==3 and native_card['native_pcie_gen']==4}],'wall_clock':{'start_utc':start,'end_utc':end,'seconds':int(runtime)},'instances':[{'instance_id':instance_id,'label':label,'host_id':host_id,'machine_id':machine_id,'hourly_rate_usd':float(hourly),'actual_cost_usd':round(actual,6),'cost_source':source}],'cost_usd':round(actual,6)}
 pathlib.Path(out,'run.json').write_text(json.dumps(meta,indent=2)+'\n')
 print('run metadata saved; cost source='+source)
 PY

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "VRAM Tier Map results.csv columns",
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "format": "CSV",
   "columns": [
     {"name":"card_id","type":"string","required":true},
@@ -24,6 +24,11 @@
     {"name":"cost_usd","type":"number|null","required":true,"minimum":0},
     {"name":"pcie_gen_actual","type":"integer|null","required":true,"minimum":0},
     {"name":"pcie_width_actual","type":"integer|null","required":true,"minimum":0},
+    {"name":"pcie_gen_idle","type":"integer|null","required":true,"minimum":0},
+    {"name":"pcie_gen_max","type":"integer|null","required":true,"minimum":0},
+    {"name":"pcie_gen_hostmax","type":"integer|null","required":true,"minimum":0},
+    {"name":"pcie_width_idle","type":"integer|null","required":true,"minimum":0},
+    {"name":"pcie_width_max","type":"integer|null","required":true,"minimum":0},
     {"name":"flags","type":"string","required":true}
   ]
 }

@@ -5,11 +5,7 @@ import json, os, sys, yaml
 def filter_offers(raw, cap, requested_gpu, cards, skipped=(), failed=(), smoke=False):
     offers = raw if isinstance(raw, list) else raw.get('offers', [])
     supported = {card['gpu_name']: card for card in cards}
-    if smoke:
-        # Smoke-only profiles for otherwise-unregistered cards. Production runs
-        # still require a card entry in cards.yaml.
-        supported.setdefault('RTX A2000', {'gpu_name':'RTX A2000','disk_gb':100,'native_pcie_gen':4,'native_pcie_width':16})
-        supported.setdefault('Q RTX 4000', {'gpu_name':'Q RTX 4000','disk_gb':100,'native_pcie_gen':3,'native_pcie_width':16,'preflight_gpu_name':'RTX 4000'})
+    # Smoke and card runs both draw exclusively from the versioned card registry.
     skipped, failed = set(map(str, skipped)), set(map(str, failed))
     valid = []
     for offer in offers:

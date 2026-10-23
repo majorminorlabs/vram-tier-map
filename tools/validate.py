@@ -7,9 +7,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-FIELDS = ["card_id", "run_id", "model_id", "quant", "task_set_version", "fit_max_ctx", "kv_type", "n_cpu_moe", "peak_vram_gb", "peak_ram_gb", "prompt_tps_64k", "decode_tps_64k", "decode_tps_120k", "ttft_64k_ms", "strict_pass_rate", "task_wall_clock_s", "speed_cv_percent", "cost_usd", "pcie_gen_actual", "pcie_width_actual", "flags"]
+FIELDS = ["card_id", "run_id", "model_id", "quant", "task_set_version", "fit_max_ctx", "kv_type", "n_cpu_moe", "peak_vram_gb", "peak_ram_gb", "prompt_tps_64k", "decode_tps_64k", "decode_tps_120k", "ttft_64k_ms", "strict_pass_rate", "task_wall_clock_s", "speed_cv_percent", "cost_usd", "pcie_gen_actual", "pcie_width_actual", "pcie_gen_idle", "pcie_gen_max", "pcie_gen_hostmax", "pcie_width_idle", "pcie_width_max", "flags"]
 RUN_ID = re.compile(r"^\d{4}-\d{2}-\d{2}_r\d{2,}$")
-NUMERIC = {"fit_max_ctx", "n_cpu_moe", "peak_vram_gb", "peak_ram_gb", "prompt_tps_64k", "decode_tps_64k", "decode_tps_120k", "ttft_64k_ms", "strict_pass_rate", "task_wall_clock_s", "speed_cv_percent", "cost_usd", "pcie_gen_actual", "pcie_width_actual"}
+NUMERIC = {"fit_max_ctx", "n_cpu_moe", "peak_vram_gb", "peak_ram_gb", "prompt_tps_64k", "decode_tps_64k", "decode_tps_120k", "ttft_64k_ms", "strict_pass_rate", "task_wall_clock_s", "speed_cv_percent", "cost_usd", "pcie_gen_actual", "pcie_width_actual", "pcie_gen_idle", "pcie_gen_max", "pcie_gen_hostmax", "pcie_width_idle", "pcie_width_max"}
 
 
 def main():
@@ -30,8 +30,8 @@ def main():
             for key in ("llama_cpp_commit", "image_digest", "harness_git_sha", "schema_version", "methodology_version", "hosts_used", "wall_clock", "cost_usd"):
                 if key not in meta:
                     failures.append(f"{folder}/run.json: missing {key}")
-            if meta.get("schema_version") != "1.1":
-                failures.append(f"{folder}/run.json: schema_version must be 1.1")
+            if meta.get("schema_version") != "1.2":
+                failures.append(f"{folder}/run.json: schema_version must be 1.2")
         except (OSError, json.JSONDecodeError) as exc:
             failures.append(f"{folder}/run.json: {exc}")
             continue

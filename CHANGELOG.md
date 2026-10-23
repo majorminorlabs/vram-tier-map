@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-23
+
+- Preflight now records idle/max/host-max PCIe capability and samples negotiated
+  generation and width during a 10-second GPU benchmark load. Idle power-saving
+  downshift no longer rejects a suitable host; results schema is 1.2.
+- Smoke rentals now select only registered cards. Removed three private
+  smoke-session host exclusions after confirming they were idle Gen 1 readings.
+
 Not yet published. Add dated entries for methodology, schema, harness, and
 edition changes. Do not rewrite historical run records.
 

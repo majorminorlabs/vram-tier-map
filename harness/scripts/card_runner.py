@@ -195,17 +195,25 @@ def main():
     registry=yaml.safe_load((ROOT/'registry/models.yaml').read_text())
     subprocess.run(['git','-C',str(LLAMA),'rev-parse','HEAD'],check=True,stdout=open(OUT/'llama-commit.txt','w'))
     rows=[]
+    with (OUT/'hosts'/args.host_id/'gpu-preflight.csv').open(newline='') as pf:
+        pcie_rows=list(csv.DictReader(pf))
+    idle_pcie=next(r for r in pcie_rows if r['phase']=='idle')
+    load_pcie=[r for r in pcie_rows if r['phase']=='load']
+    def pcie_int(value):
+        try: return int(value)
+        except (TypeError,ValueError): return ''
+    native_width=next(c['native_pcie_width'] for c in yaml.safe_load((ROOT/'registry/cards.yaml').read_text())['cards'] if c['card_id']==args.card_id)
+    qualified=next(r for r in load_pcie if pcie_int(r['pcie_gen_current'])!='' and pcie_int(r['pcie_gen_current'])>=3 and pcie_int(r['pcie_width_current'])==native_width)
+    pcie_gen=pcie_int(qualified['pcie_gen_current']); pcie_width=pcie_int(qualified['pcie_width_current'])
+    pcie_context={'pcie_gen_actual':pcie_gen,'pcie_width_actual':pcie_width,'pcie_gen_idle':pcie_int(idle_pcie['pcie_gen_current']),'pcie_gen_max':max([pcie_int(r['pcie_gen_max']) for r in pcie_rows if pcie_int(r['pcie_gen_max'])!=''],default=''),'pcie_gen_hostmax':max([pcie_int(r['pcie_gen_hostmax']) for r in pcie_rows if pcie_int(r['pcie_gen_hostmax'])!=''],default=''),'pcie_width_idle':pcie_int(idle_pcie['pcie_width_current']),'pcie_width_max':max([pcie_int(r['pcie_width_max']) for r in pcie_rows if pcie_int(r['pcie_width_max'])!=''],default='')}
     for model in registry['models']:
         row=run_model(model,args); rows.append(row)
-        preflight=list(csv.reader(open(OUT/'hosts'/args.host_id/'gpu-preflight.csv',newline='')))
-        pcie_gen=int(preflight[0][4].strip())
-        pcie_width=int(preflight[0][6].strip())
         flags=list(row.get('flags',[]))
         if pcie_gen == 3 and args.card_id in ('rtx-3090-24gb','rtx-4060-ti-16gb','rtx-3060-12gb','rtx-3070-8gb'): flags.append('pcie_gen3_on_gen4_card')
-        result={'card_id':args.card_id,'run_id':args.run_id,'model_id':row['model_id'],'quant':row.get('quant','not-fit'),'task_set_version':'cuda-recipes-001-v1','fit_max_ctx':row.get('fit_max_ctx',''),'kv_type':row.get('kv_type','none'),'n_cpu_moe':row.get('n_cpu_moe',''),'peak_vram_gb':row.get('peak_vram_gb',''),'peak_ram_gb':row.get('peak_ram_gb',''),'prompt_tps_64k':row.get('prompt_tps_64k',''),'decode_tps_64k':row.get('decode_tps_64k',''),'decode_tps_120k':row.get('decode_tps_120k',''),'ttft_64k_ms':row.get('ttft_64k_ms',''),'strict_pass_rate':row.get('strict_pass_rate',''),'task_wall_clock_s':row.get('task_wall_clock_s',''),'speed_cv_percent':row.get('speed_cv_percent',''),'cost_usd':'','pcie_gen_actual':pcie_gen,'pcie_width_actual':pcie_width,'flags':';'.join(flags) or ('fit_failed' if row.get('fit')=='failed' else 'none')}
+        result={'card_id':args.card_id,'run_id':args.run_id,'model_id':row['model_id'],'quant':row.get('quant','not-fit'),'task_set_version':'cuda-recipes-001-v1','fit_max_ctx':row.get('fit_max_ctx',''),'kv_type':row.get('kv_type','none'),'n_cpu_moe':row.get('n_cpu_moe',''),'peak_vram_gb':row.get('peak_vram_gb',''),'peak_ram_gb':row.get('peak_ram_gb',''),'prompt_tps_64k':row.get('prompt_tps_64k',''),'decode_tps_64k':row.get('decode_tps_64k',''),'decode_tps_120k':row.get('decode_tps_120k',''),'ttft_64k_ms':row.get('ttft_64k_ms',''),'strict_pass_rate':row.get('strict_pass_rate',''),'task_wall_clock_s':row.get('task_wall_clock_s',''),'speed_cv_percent':row.get('speed_cv_percent',''),'cost_usd':'',**pcie_context,'flags':';'.join(flags) or ('fit_failed' if row.get('fit')=='failed' else 'none')}
         p=OUT/'results.csv'
         import csv
-        fields=['card_id','run_id','model_id','quant','task_set_version','fit_max_ctx','kv_type','n_cpu_moe','peak_vram_gb','peak_ram_gb','prompt_tps_64k','decode_tps_64k','decode_tps_120k','ttft_64k_ms','strict_pass_rate','task_wall_clock_s','speed_cv_percent','cost_usd','pcie_gen_actual','pcie_width_actual','flags']
+        fields=['card_id','run_id','model_id','quant','task_set_version','fit_max_ctx','kv_type','n_cpu_moe','peak_vram_gb','peak_ram_gb','prompt_tps_64k','decode_tps_64k','decode_tps_120k','ttft_64k_ms','strict_pass_rate','task_wall_clock_s','speed_cv_percent','cost_usd','pcie_gen_actual','pcie_width_actual','pcie_gen_idle','pcie_gen_max','pcie_gen_hostmax','pcie_width_idle','pcie_width_max','flags']
         with p.open('a',newline='') as f:
             w=csv.DictWriter(f,fieldnames=fields)
             if p.stat().st_size==0:w.writeheader()
