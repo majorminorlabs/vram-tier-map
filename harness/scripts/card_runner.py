@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """GPU fit, speed, TTFT, and strict task evaluation for one card run."""
-import argparse, csv, hashlib, json, os, re, signal, subprocess, sys, time, urllib.request
+import argparse, csv, hashlib, json, os, re, signal, shutil, subprocess, sys, time, urllib.request
 from pathlib import Path
 import yaml
 
@@ -72,6 +72,14 @@ def ttft(prefix, logdir):
 def download(model, f):
     CACHE.mkdir(parents=True,exist_ok=True)
     dest=CACHE/f['file']
+    free=shutil.disk_usage(CACHE).free
+    required=int(f['size_bytes'])+10*1024**3
+    disk_log=OUT/'logs'/'disk-space.log'; disk_log.parent.mkdir(parents=True,exist_ok=True)
+    with disk_log.open('a',encoding='utf-8') as log:
+        log.write(json.dumps({'event':'before_model_download','model_id':model['model_id'],'file':f['file'],'free_bytes':free,'model_bytes':int(f['size_bytes']),'required_bytes':required})+'\n')
+    print(f"disk before download {f['file']}: free={free/1024**3:.2f} GiB required={(required)/1024**3:.2f} GiB",flush=True)
+    if free < required:
+        raise RuntimeError(f"insufficient disk before downloading {f['file']}: free {free} bytes; need {required} bytes")
     def digest(path):
         h=hashlib.sha256()
         with path.open('rb') as stream:

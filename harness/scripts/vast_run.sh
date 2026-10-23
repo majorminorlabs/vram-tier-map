@@ -26,47 +26,16 @@ label="vtm-$run_id"
 state="$private/watchdogs/$run_id"
 mkdir -p "$state"
 deadline=$(( $(date +%s) + 21600 ))
+max_runtime_seconds=21600
+if [[ "$mode" == smoke || "$mode" == smoke-kill ]]; then
+  max_runtime_seconds=1800
+  deadline=$(( $(date +%s) + max_runtime_seconds ))
+fi
 "$scripts/destroy_label.sh" "$label" "$private/pre-create-cleanup.log"
 "$scripts/cleanup_orphans.sh" "$label" "$private/pre-create-cleanup.log"
-query="num_gpus=1 cpu_ram>=64 reliability>=0.98 verified=true rentable=true dph<=$cap pci_gen>=3 pcie_bw>=7.88"
-[[ "$gpu" == any ]] || query+=" gpu_name=${gpu// /_}"
 failed="$private/failed-host-ids.txt"
-if [[ -s "$failed" ]]; then hosts=$(tr '\n' ',' < "$failed" | sed 's/,$//'); [[ -z "$hosts" ]] || query+=" machine_id notin [$hosts]"; fi
-offers=$(vastai search offers --raw --limit 100 --order dph_total "$query" 2>/dev/null) || { echo 'Vast offer search failed using saved CLI auth' >&2; exit 1; }
-offer=$(python3 - "$offers" "$cap" "$gpu" harness/registry/cards.yaml "$failed" <<'PY'
-import json,sys,yaml
-r=json.loads(sys.argv[1]); r=r if isinstance(r,list) else r.get('offers',[])
-cards=yaml.safe_load(open(sys.argv[4]))['cards']; supported={c['gpu_name']:c for c in cards}
-failed=set(open(sys.argv[5]).read().split()) if __import__('os').path.exists(sys.argv[5]) else set()
-r=[x for x in r if str(x.get('machine_id','')) not in failed and int(x.get('num_gpus',0))==1 and float(x.get('cpu_ram',0))>=64000 and float(x.get('reliability',0))>=.98 and (x.get('verified') is True or x.get('verification')=='verified' or x.get('vericode')==1) and x.get('rentable') is True and float(x.get('dph_total',x.get('dph',1e9)))<=float(sys.argv[2]) and float(x.get('pci_gen',0))>=3 and x.get('gpu_name') in supported and float(x.get('pcie_bw',0)) >= (15.75 if supported[x['gpu_name']]['native_pcie_width']==16 else 7.88) and (sys.argv[3]=='any' or x.get('gpu_name')==sys.argv[3])]
-if not r: raise SystemExit(1)
-r.sort(key=lambda x:(float(x.get('dph_total',x.get('dph',1e9))),-float(x.get('reliability',0))))
-print(json.dumps(r[0]))
-PY
-) || { echo 'No qualifying offer found' >&2; exit 1; }
-offer_id=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["id"])' "$offer")
-host=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("machine_id",""))' "$offer")
-offer_gpu=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("gpu_name",""))' "$offer")
-pcie_width=$(python3 - "$offer" harness/registry/cards.yaml <<'PY'
-import json,sys,yaml
-x=json.loads(sys.argv[1]); cards=yaml.safe_load(open(sys.argv[2]))['cards']
-c=next(c for c in cards if c['gpu_name']==x['gpu_name'])
-print(c['native_pcie_width'])
-PY
-)
-native_gen=$(python3 - "$offer" harness/registry/cards.yaml <<'PY'
-import json,sys,yaml
-x=json.loads(sys.argv[1]); cards=yaml.safe_load(open(sys.argv[2]))['cards']
-c=next(c for c in cards if c['gpu_name']==x['gpu_name'])
-print(c['native_pcie_gen'])
-PY
-)
-host_id=$(python3 -c 'import json,sys; x=json.loads(sys.argv[1]); print(x.get("host_id",x.get("machine_id","")))' "$offer")
-hourly=$(python3 -c 'import json,sys; x=json.loads(sys.argv[1]); print(x.get("dph_total",x.get("dph")))' "$offer")
-python3 - "$hourly" <<'PY'
-import sys
-if float(sys.argv[1])*6>20: raise SystemExit('projected six-hour spend exceeds 80% of budget')
-PY
+skip_offers="$private/create-responses/${run_id}.skip-offers"
+touch "$skip_offers"
 image=$(python3 - harness/registry/runtime.yaml <<'PY'
 import sys,yaml
 cfg=yaml.safe_load(open(sys.argv[1]))
@@ -91,26 +60,43 @@ cleanup() {
   fi
   if [[ -n "$id" ]]; then
     printf '%s\n' "$id" > "$state/active-instance-id.txt"
-    "$scripts/teardown.sh" "$id" "$label" "$state" >> "$state/teardown.log" 2>&1 || rc=1
+    if "$scripts/teardown.sh" "$id" "$label" "$state" >> "$state/teardown.log" 2>&1; then
+      if [[ -f "$state/active-instance-meta.json" ]]; then
+        read -r meta_run meta_id meta_hourly meta_started meta_ledger < <(python3 -c 'import json,sys; x=json.load(open(sys.argv[1])); print(x["run_id"],x["instance_id"],x["hourly"],x["started_epoch"],x["ledger"])' "$state/active-instance-meta.json")
+        python3 "$scripts/record_spend.py" "$meta_run" "$meta_id" "$meta_hourly" "$meta_started" "$meta_ledger" >> "$state/spend.log" 2>&1 || rc=1
+      fi
+    else rc=1; fi
   fi
   touch "$state/main.done"
   wait "$wd" 2>/dev/null || true
   return "$rc"
 }
 trap cleanup EXIT INT TERM
-create_log="$private/create-responses/${run_id}.json"
-create_rc=0
 startup_deadline=$(( $(date +%s) + 900 ))
-created=$(python3 "$scripts/vast_create.py" "$run_id" "$label" "$offer_id" "$image" 120 "$private/create-responses") || create_rc=$?
-returned_id=$(python3 - "$created" <<'PY'
-import json,sys,re
-try:
- r=json.loads(sys.argv[1]); r=r[0] if isinstance(r,list) else r
- print(r.get('new_contract',r.get('id',r.get('instance_id',''))))
-except Exception:
- m=re.search(r'\bnew_contract\D+(\d+)',sys.argv[1]); print(m.group(1) if m else '')
+provision=$(python3 "$scripts/create_retry.py" "$run_id" "$label" "$image" "$cap" "$gpu" "$mode" "$repo/harness/registry/cards.yaml" "$private" "$failed") || {
+  echo "create retry exhausted or provisioning failed; diagnostics: $private/create-responses/${run_id}.stderr.txt" >&2
+  exit 1
+}
+offer=$(python3 -c 'import json,sys; print(json.dumps(json.loads(sys.argv[1])["offer"]))' "$provision")
+returned_id=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["instance_id"])' "$provision")
+create_attempt=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["create_attempt"])' "$provision")
+session_ledger=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["session_ledger"])' "$provision")
+created_epoch=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["created_epoch"])' "$provision")
+offer_id=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["id"])' "$offer")
+host=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("machine_id",""))' "$offer")
+offer_gpu=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("gpu_name",""))' "$offer")
+disk_gb=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["_vtm_disk_gb"])' "$offer")
+pcie_width=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["_vtm_native_pcie_width"])' "$offer")
+native_gen=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["_vtm_native_pcie_gen"])' "$offer")
+host_id=$(python3 -c 'import json,sys; x=json.loads(sys.argv[1]); print(x.get("host_id",x.get("machine_id","")))' "$offer")
+hourly=$(python3 -c 'import json,sys; x=json.loads(sys.argv[1]); print(x.get("dph_total",x.get("dph")))' "$offer")
+id="$returned_id"
+printf '%s\n' "$id" > "$state/active-instance-id.txt"
+python3 - "$state/active-instance-meta.json" "$run_id" "$id" "$hourly" "$session_ledger" "$created_epoch" <<'PY'
+import json,sys
+path,run_id,instance_id,hourly,ledger,started=sys.argv[1:]
+json.dump({'run_id':run_id,'instance_id':instance_id,'hourly':float(hourly),'started_epoch':float(started),'ledger':ledger},open(path,'w'),indent=2)
 PY
-)
 instances=''
 for _ in $(seq 1 12); do
   instances=$(vastai show instances --raw 2>/dev/null) || { sleep 5; continue; }
@@ -137,13 +123,13 @@ PY
 fi
 if [[ -z "$id" && -n "$returned_id" ]]; then id=$returned_id; fi
 if [[ -z "$id" ]]; then
-  echo "create returned no adoptable ID (CLI exit $create_rc); redacted response: $create_log" >&2
+  echo "create returned no adoptable ID; redacted response: $private/create-responses/${run_id}.json" >&2
   exit 1
 fi
 printf '%s\n' "$id" > "$state/active-instance-id.txt"
 printf '%s\n' "$id" > "$out/instance-id.txt"
 printf '%s\n' "$label" > "$out/label.txt"
-printf 'run_id=%s\ninstance_id=%s\nlabel=%s\nmachine_id=%s\nhourly_usd=%s\ncreate_exit=%s\n' "$run_id" "$id" "$label" "$host" "$hourly" "$create_rc" > "$private/${run_id}-instance.txt"
+printf 'run_id=%s\ninstance_id=%s\nlabel=%s\nmachine_id=%s\noffer_id=%s\nhourly_usd=%s\ncreate_attempt=%s\ndisk_gb=%s\n' "$run_id" "$id" "$label" "$host" "$offer_id" "$hourly" "$create_attempt" "$disk_gb" > "$private/${run_id}-instance.txt"
 echo "created/adopted run=$run_id instance=$id gpu=$offer_gpu hourly=$hourly"
 status=''
 while (( $(date +%s) < startup_deadline )); do
@@ -246,6 +232,11 @@ if (( preflight_rc != 0 )); then
     sort -u "$failed" -o "$failed"
     echo "host rejected by preflight; destroying and advancing to next offer ($(( ${VTM_REJECTED_COUNT:-0} + 1 ))/3): machine_id=$host" >&2
     "$scripts/teardown.sh" "$id" "$label" "$state" >> "$state/teardown.log" 2>&1
+    if [[ -f "$state/active-instance-meta.json" ]]; then
+      read -r meta_run meta_id meta_hourly meta_started meta_ledger < <(python3 -c 'import json,sys; x=json.load(open(sys.argv[1])); print(x["run_id"],x["instance_id"],x["hourly"],x["started_epoch"],x["ledger"])' "$state/active-instance-meta.json")
+      python3 "$scripts/record_spend.py" "$meta_run" "$meta_id" "$meta_hourly" "$meta_started" "$meta_ledger" >> "$state/spend.log" 2>&1
+      rm -f "$state/active-instance-meta.json"
+    fi
     id=''
     touch "$state/main.done"
     wait "$wd" 2>/dev/null || true

@@ -28,3 +28,9 @@ edition changes. Do not rewrite historical run records.
 - Added per-card native PCIe generation and width, offer filtering using Vast's `pci_gen` and `pcie_bw`, actual negotiated PCIe values in result rows/run metadata, and a flag for Gen 3 links on Gen 4 cards.
 - Preflight-rejected hosts are destroyed, confirmed absent, excluded, and replaced up to a three-host limit; execution failures remain gate failures.
 - Watchdog treats whitespace/empty instance output and an empty list as zero instances and exits once its run's instances are gone. Mock coverage added.
+
+# 2026-10-23
+
+- Create diagnostics now retain redacted stderr and explicit HTTP status summaries; create requires JSON `success: true` and `new_contract`, then retries up to three disk-qualified offers with cleanup and per-run offer skips.
+- Added per-card scratch disk requirements, offer-side disk filtering, one-model-at-a-time GGUF deletion, and free-space checks with a 10 GiB reserve.
+- Added no-rental create retry, empty stdout, and disk filtering tests. Added a private estimated spend ledger and pre-rental $6 session cap.

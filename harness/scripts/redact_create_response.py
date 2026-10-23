@@ -14,6 +14,7 @@ def clean(value):
     if isinstance(value, list): return [clean(v) for v in value]
     if isinstance(value, str):
         for rx in patterns: value = rx.sub(r"\1[REDACTED]", value)
+        value = re.sub(r"(?<![A-Za-z0-9])[A-Za-z0-9._~+/=:@%-]{32,}(?![A-Za-z0-9])", "[REDACTED]", value)
         return value
     return value
 try:
