@@ -7,9 +7,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-FIELDS = ["card_id", "run_id", "model_id", "quant", "task_set_version", "fit_max_ctx", "kv_type", "n_cpu_moe", "peak_vram_gb", "peak_ram_gb", "prompt_tps_64k", "decode_tps_64k", "decode_tps_120k", "ttft_64k_ms", "strict_pass_rate", "task_wall_clock_s", "speed_cv_percent", "cost_usd", "pcie_gen_actual", "pcie_width_actual", "pcie_gen_idle", "pcie_gen_max", "pcie_gen_hostmax", "pcie_width_idle", "pcie_width_max", "pcie_width_hostmax", "power_limit_w", "power_default_limit_w", "pcie_h2d_gbps", "driver_version", "host_cuda_max", "host_ram_total_gb", "instance_cpu_ram", "free_ram_at_load_gb", "verified_status", "flags"]
+FIELDS = ["card_id", "run_id", "model_id", "quant", "task_set_version", "fit_max_ctx", "kv_type", "n_cpu_moe", "peak_vram_gb", "peak_ram_gb", "prompt_tps_64k", "decode_tps_64k", "decode_tps_120k", "ttft_64k_ms", "strict_pass_rate", "task_wall_clock_s", "speed_cv_percent", "cost_usd", "provider", "pod_type", "hourly_rate_usd", "cpu_idle_percent", "pcie_gen_actual", "pcie_width_actual", "pcie_gen_idle", "pcie_gen_max", "pcie_gen_hostmax", "pcie_width_idle", "pcie_width_max", "pcie_width_hostmax", "power_limit_w", "power_default_limit_w", "pcie_h2d_gbps", "driver_version", "host_cuda_max", "host_ram_total_gb", "instance_cpu_ram", "free_ram_at_load_gb", "verified_status", "flags"]
 RUN_ID = re.compile(r"^\d{4}-\d{2}-\d{2}_r\d{2,}$")
-NUMERIC = {"fit_max_ctx", "n_cpu_moe", "peak_vram_gb", "peak_ram_gb", "prompt_tps_64k", "decode_tps_64k", "decode_tps_120k", "ttft_64k_ms", "strict_pass_rate", "task_wall_clock_s", "speed_cv_percent", "cost_usd", "pcie_gen_actual", "pcie_width_actual", "pcie_gen_idle", "pcie_gen_max", "pcie_gen_hostmax", "pcie_width_idle", "pcie_width_max", "pcie_width_hostmax", "power_limit_w", "power_default_limit_w", "pcie_h2d_gbps", "host_ram_total_gb", "instance_cpu_ram", "free_ram_at_load_gb"}
+NUMERIC = {"fit_max_ctx", "n_cpu_moe", "peak_vram_gb", "peak_ram_gb", "prompt_tps_64k", "decode_tps_64k", "decode_tps_120k", "ttft_64k_ms", "strict_pass_rate", "task_wall_clock_s", "speed_cv_percent", "cost_usd", "hourly_rate_usd", "cpu_idle_percent", "pcie_gen_actual", "pcie_width_actual", "pcie_gen_idle", "pcie_gen_max", "pcie_gen_hostmax", "pcie_width_idle", "pcie_width_max", "pcie_width_hostmax", "power_limit_w", "power_default_limit_w", "pcie_h2d_gbps", "host_ram_total_gb", "instance_cpu_ram", "free_ram_at_load_gb"}
 
 
 def main():
@@ -27,13 +27,13 @@ def main():
                 failures.append(f"{folder}: missing {required}")
         try:
             meta = json.loads((folder / "run.json").read_text(encoding="utf-8"))
-            for key in ("llama_cpp_commit", "image_digest", "cuda_toolkit", "minimum_driver_version", "harness_git_sha", "schema_version", "methodology_version", "hosts_used", "wall_clock", "cost_usd"):
+            for key in ("llama_cpp_commit", "image_digest", "cuda_toolkit", "minimum_driver_version", "harness_git_sha", "schema_version", "methodology_version", "hosts_used", "wall_clock", "cost_usd", "provider", "hourly_rate_usd"):
                 if key not in meta:
                     failures.append(f"{folder}/run.json: missing {key}")
-            if meta.get("schema_version") != "1.5":
-                failures.append(f"{folder}/run.json: schema_version must be 1.5")
-            if meta.get("methodology_version") != "v1.1":
-                failures.append(f"{folder}/run.json: methodology_version must be v1.1")
+            if meta.get("schema_version") != "1.6":
+                failures.append(f"{folder}/run.json: schema_version must be 1.6")
+            if meta.get("methodology_version") != "v1.3":
+                failures.append(f"{folder}/run.json: methodology_version must be v1.3")
         except (OSError, json.JSONDecodeError) as exc:
             failures.append(f"{folder}/run.json: {exc}")
             continue
@@ -48,9 +48,11 @@ def main():
                     for key in ("model_id", "quant", "task_set_version", "kv_type", "flags"):
                         if row.get(key, "") == "":
                             failures.append(f"{folder}/results.csv:{index}: missing {key}")
-                    for key in ("host_ram_total_gb", "instance_cpu_ram", "free_ram_at_load_gb", "verified_status", "driver_version", "host_cuda_max"):
+                    for key in ("host_ram_total_gb", "free_ram_at_load_gb", "verified_status", "driver_version", "host_cuda_max"):
                         if row.get(key, "") == "":
                             failures.append(f"{folder}/results.csv:{index}: missing {key}")
+                    if row.get("provider") == "vast" and not row.get("instance_cpu_ram", ""):
+                        failures.append(f"{folder}/results.csv:{index}: missing instance_cpu_ram for Vast row")
                     for key in NUMERIC:
                         value = row.get(key, "")
                         if value:

@@ -16,6 +16,8 @@
   total RAM, the offer's raw `cpu_ram`, and free RAM at load in every result row.
   Record each host's verification status in run metadata and each result row.
 
+- **v1.3:** Per-card provider routing, same image digest across providers, config-sensitive CPU-idle gate, and timestamped host exclusions.
+
 ## Pinned runtime image
 
 The pinned llama.cpp commit is release tag `b11779`. The corresponding official
@@ -133,3 +135,24 @@ values, and measured H2D GB/s. Pass requires at least 6 GB/s for native x16 card
 native width. Every card result row records measured H2D GB/s and both power limits.
 PCIe generation under compute-only load is not an acceptance criterion. Card runs can
 reject up to five hosts; smoke host-quality warnings do not fail the smoke gate.
+
+## v1.3 (2026-10-24): provider and config-sensitive CPU policy
+
+Provider selection is versioned per card in `harness/registry/cards.yaml`: RTX 3090 uses
+RunPod and the other registered cards use Vast. Both providers must use the same immutable
+llama.cpp image digest recorded in `runtime.yaml` and each `run.json`. Results and run
+metadata record provider, RunPod pod type (secure/community), and hourly rate. RunPod
+control-plane auth is read through `runpodctl`'s saved configuration; credentials never
+enter harness output or run artifacts. The RTX 3090 RunPod run uses community pods when
+available within the card cap and the private session ledger enforces the $6 spend limit.
+
+CPU idle is measured and recorded on every result. A host is required to have at least
+90% CPU idle only for configurations that offload MoE layers to CPU; if that configuration
+is busy, record `skipped: CPU busy` and proceed to other configurations. GPU-only configs
+continue regardless of idle percentage.
+
+Host exclusions are stored with a reason and UTC timestamp. Startup stalls, SSH/image
+timeouts, CPU busy, and another GPU process expire after 24 hours. CUDA initialization,
+PCIe qualification, power-cap, and disk-full failures remain permanent exclusions. The
+historical permanent machine list is retained; timestamped entries are kept in the private
+exclusion ledger.

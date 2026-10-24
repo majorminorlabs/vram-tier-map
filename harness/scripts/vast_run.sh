@@ -16,6 +16,7 @@ import json,sys
 cards=json.load(open('harness/registry/cards.yaml'))['cards']
 c=next((x for x in cards if x['gpu_name']==sys.argv[1]),None)
 if not c: raise SystemExit('GPU is absent from card registry')
+if c.get('provider','vast')!='vast': raise SystemExit('card provider is not Vast; refusing to rent from Vast')
 print(c['vast_price_cap_usd_per_hour'])
 PY
 )
@@ -96,6 +97,7 @@ cleanup() {
     mkdir -p "$out/emergency-pull"
     scp -i "$ssh_key" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -P "$ssh_port" -r "root@$ssh_host:/workspace/output/." "$out/emergency-pull/" >/dev/null 2>&1 || echo 'emergency result pull failed before teardown' >&2
   fi
+  if [[ "$mode" == card ]] && rg -q 'disk_full.*true|insufficient disk|No space left on device' "$out/emergency-pull/logs/disk-space.log" 2>/dev/null; then python3 "$scripts/exclusions.py" add "$private/exclusions.jsonl" "$host" 'disk-full during model download' >/dev/null; fi
   if [[ -n "$id" ]]; then
     printf '%s\n' "$id" > "$state/active-instance-id.txt"
     if "$scripts/teardown.sh" "$id" "$label" "$state" >> "$state/teardown.log" 2>&1; then
@@ -174,7 +176,7 @@ echo "created/adopted run=$run_id instance=$id gpu=$offer_gpu hourly=$hourly"
 handle_startup_host_failure() {
   local reason=$1 rejected
   printf 'host_id=%s machine_id=%s reason=startup failure detail=%s\n' "$host_id" "$host" "$reason" >> "$private/failed-host-reasons.tsv"
-  if [[ -n "$host" ]]; then printf '%s\n' "$host" >> "$failed"; sort -u "$failed" -o "$failed"; fi
+  python3 "$scripts/exclusions.py" add "$private/exclusions.jsonl" "$host" "$reason" >/dev/null
   echo "startup host failure; reason=$reason machine_id=$host; destroying and advancing" >&2
   "$scripts/teardown.sh" "$id" "$label" "$state" >> "$state/teardown.log" 2>&1 || exit 1
   if [[ -f "$state/active-instance-meta.json" ]]; then
@@ -304,6 +306,24 @@ if (( preflight_rc != 0 )); then
     "${ssh[@]}" "tar -C '/workspace/output/hosts/$host_path' -cf - ." 2>/dev/null | tar -C "$private/rejected-hosts/$run_id/$host_path" -xf - || true
   fi
   cuda_state="$private/cuda-init-streak-${run_id}.json"
+  preflight_reason=$(python3 - "$private/rejected-hosts/$run_id/$host_path" <<'PYCLASS'
+import json,sys,pathlib
+p=pathlib.Path(sys.argv[1])
+proc=p/'gpu-processes.csv'
+if proc.exists() and any(x.strip() and 'No running processes found' not in x for x in proc.read_text().splitlines()): print('GPU process present'); raise SystemExit
+q=p/'host-quality.json'
+try:
+ x=json.loads(q.read_text())
+ if not x.get('power_pass',True): print('power cap'); raise SystemExit
+except Exception: pass
+t=p/'pcie-transfer.json'
+try:
+ x=json.loads(t.read_text())
+ if not x.get('passed',True): print('PCIe qualification'); raise SystemExit
+except Exception: pass
+print('preflight rejection')
+PYCLASS
+)
   if [[ "$mode" == card ]]; then
     cuda_preflight_log=$(find "$private/rejected-hosts/$run_id/$host_path" -maxdepth 1 -type f -name 'pcie-transfer-*.log' -print 2>/dev/null | sort | tail -1)
     streak_json=''
@@ -317,15 +337,12 @@ if (( preflight_rc != 0 )); then
       preflight_reason="CUDA initialization failed: $cuda_error"
     else
       rm -f "$cuda_state"
-      preflight_reason='preflight rejection'
+      [[ "$preflight_reason" != 'preflight rejection' ]] || preflight_reason='preflight rejection'
     fi
-  else
-    preflight_reason='preflight rejection'
   fi
+  printf 'host_id=%s machine_id=%s reason=%s\n' "$host_id" "$host" "$preflight_reason" >> "$private/failed-host-reasons.tsv"
+  python3 "$scripts/exclusions.py" add "$private/exclusions.jsonl" "$host" "$preflight_reason" >/dev/null
   if (( ${VTM_REJECTED_COUNT:-0} + 1 < host_retry_limit )); then
-    printf '%s\n' "$host" >> "$failed"
-    sort -u "$failed" -o "$failed"
-    printf 'host_id=%s machine_id=%s reason=%s\n' "$host_id" "$host" "$preflight_reason" >> "$private/failed-host-reasons.tsv"
     echo "host rejected by preflight; destroying and advancing to next offer ($(( ${VTM_REJECTED_COUNT:-0} + 1 ))/$host_retry_limit): machine_id=$host" >&2
     "$scripts/teardown.sh" "$id" "$label" "$state" >> "$state/teardown.log" 2>&1
     if [[ -f "$state/active-instance-meta.json" ]]; then
@@ -339,7 +356,6 @@ if (( preflight_rc != 0 )); then
     rm -f "$state/main.done" "$state/active-instance-id.txt"
     exec env VTM_REJECTED_COUNT="$(( ${VTM_REJECTED_COUNT:-0} + 1 ))" "$0" "$mode" "$gpu" "$cap" "$out" "$run_id"
   fi
-  printf '%s\n' "$host" >> "$failed"
   echo "ERROR: $host_retry_limit hosts rejected by preflight; attempt aborted" >&2
   exit 1
 fi
@@ -370,8 +386,8 @@ if [[ "$mode" == smoke || "$mode" == smoke-kill ]]; then
           exit 1
         fi
         printf 'host_id=%s machine_id=%s offer_id=%s reason=CUDA initialization failed: %s\n' "$host_id" "$host" "$offer_id" "$cuda_error" >> "$private/failed-host-reasons.tsv"
-        if [[ -n "$host" ]]; then printf '%s\n' "$host" >> "$failed"; sort -u "$failed" -o "$failed"; fi
-        rejected=${VTM_REJECTED_COUNT:-0}
+        python3 "$scripts/exclusions.py" add "$private/exclusions.jsonl" "$host" "CUDA initialization failed: $cuda_error" >/dev/null
+              rejected=${VTM_REJECTED_COUNT:-0}
         if (( rejected + 1 < host_retry_limit )); then
           echo "CUDA initialization host failure; advancing to another offer ($((rejected + 1))/$host_retry_limit): $cuda_error" >&2
           "$scripts/teardown.sh" "$id" "$label" "$state" >> "$state/teardown.log" 2>&1 || exit 1
@@ -402,7 +418,7 @@ print(card)
 PY
 )
   upload_tree "$repo/harness" /workspace/harness
-  "${ssh[@]}" "PATH=/workspace/bin:\$PATH LD_LIBRARY_PATH=/workspace/llama.cpp/build/bin python3 /workspace/harness/scripts/card_runner.py --card-id '$card_id' --run-id '$run_id' --host-id '$host_path' --instance-cpu-ram '$instance_cpu_ram' --verified-status '$verified_status' --mode full"
+  "${ssh[@]}" "PATH=/workspace/bin:\$PATH LD_LIBRARY_PATH=/workspace/llama.cpp/build/bin python3 /workspace/harness/scripts/card_runner.py --card-id '$card_id' --run-id '$run_id' --host-id '$host_path' --instance-cpu-ram '$instance_cpu_ram' --verified-status '$verified_status' --provider vast --pod-type 'not_applicable' --hourly-rate '$hourly' --mode full"
   "${ssh[@]}" "if test -f '/workspace/output/hosts/$host_path/telemetry.pid'; then kill \$(cat '/workspace/output/hosts/$host_path/telemetry.pid') 2>/dev/null || true; fi"
 fi
 copy_dest="$out"
@@ -410,6 +426,7 @@ if [[ "$mode" != card ]]; then copy_dest="$out/results"; fi
 mkdir -p "$copy_dest"
 scp "${scp_opts[@]}" -r "root@$ssh_host:/workspace/output/." "$copy_dest/" || { echo 'result pull failed' >&2; exit 1; }
 pulled=1
+if [[ "$mode" == card ]] && grep -q 'skipped: CPU busy' "$out/results.csv" 2>/dev/null; then python3 "$scripts/exclusions.py" add "$private/exclusions.jsonl" "$host" 'CPU busy during CPU-offloaded config' >/dev/null; fi
 if [[ "$mode" == card ]]; then
   end_epoch=$(date +%s); end_utc=$(date -u +%FT%TZ); runtime=$((end_epoch-started_epoch))
   instance_state=$(vastai show instance "$id" --raw 2>/dev/null || true)
@@ -441,7 +458,7 @@ quality_path=pathlib.Path(out,'hosts',host_path,'host-quality.json'); quality=js
 transfer_path=pathlib.Path(out,'hosts',host_path,'pcie-transfer.json'); transfer=json.loads(transfer_path.read_text()) if transfer_path.exists() else {}
 evidence_path=pathlib.Path(out,'first-config-cuda-evidence.json'); cuda_evidence=json.loads(evidence_path.read_text()) if evidence_path.exists() else None
 pcie_context={'pcie_gen_actual':pcie_gen,'pcie_width_actual':pcie_width,'pcie_gen_idle':iv(idle['pcie_gen_current']),'pcie_gen_max':max((iv(r['pcie_gen_max']) for r in pcie if iv(r['pcie_gen_max']) is not None),default=None),'pcie_gen_hostmax':max((iv(r['pcie_gen_hostmax']) for r in pcie if iv(r['pcie_gen_hostmax']) is not None),default=None),'pcie_width_idle':iv(idle['pcie_width_current']),'pcie_width_max':max((iv(r['pcie_width_max']) for r in pcie if iv(r['pcie_width_max']) is not None),default=None),'pcie_width_hostmax':max((iv(r['pcie_width_hostmax']) for r in pcie if iv(r['pcie_width_hostmax']) is not None),default=None),'power_limit_w':quality.get('power_limit_w'),'power_default_limit_w':quality.get('power_default_limit_w'),'pcie_h2d_gbps':transfer.get('measured_h2d_gbps'),'driver_version':quality.get('driver_version'),'host_cuda_max':quality.get('host_cuda_max')}
-meta={'card_id':card_id,'run_id':run_id,'tier':tier,'llama_cpp_commit':cfg['llama_cpp_commit'],'image_digest':digest,'image':image,'cuda_toolkit':cfg.get('cuda_toolkit'),'minimum_driver_version':cfg.get('minimum_driver_version'),'harness_git_sha':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'schema_version':'1.5','methodology_version':'v1.2','first_config_cuda_evidence':cuda_evidence,'host_replication':{'status':host_replication,'eligible_host_count':int(eligible_host_count)},'hosts_used':[{'host_id':host_id,'machine_id':machine_id,'instance_cpu_ram':instance_cpu_ram,'verified_status':verified_status,**pcie_context,'pcie_native_gen':native_card['native_pcie_gen'],'pcie_native_width':native_card['native_pcie_width'],'pcie_gen3_on_gen4_card':pcie_gen==3 and native_card['native_pcie_gen']==4}],'wall_clock':{'start_utc':start,'end_utc':end,'seconds':int(runtime)},'instances':[{'instance_id':instance_id,'label':label,'host_id':host_id,'machine_id':machine_id,'hourly_rate_usd':float(hourly),'actual_cost_usd':round(actual,6),'cost_source':source}],'cost_usd':round(actual,6)}
+meta={'card_id':card_id,'run_id':run_id,'tier':tier,'llama_cpp_commit':cfg['llama_cpp_commit'],'image_digest':digest,'image':image,'cuda_toolkit':cfg.get('cuda_toolkit'),'minimum_driver_version':cfg.get('minimum_driver_version'),'harness_git_sha':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'schema_version':'1.6','methodology_version':'v1.3','provider':'vast','pod_type':'not_applicable','hourly_rate_usd':float(hourly),'first_config_cuda_evidence':cuda_evidence,'host_replication':{'status':host_replication,'eligible_host_count':int(eligible_host_count)},'hosts_used':[{'host_id':host_id,'machine_id':machine_id,'instance_cpu_ram':instance_cpu_ram,'verified_status':verified_status,**pcie_context,'pcie_native_gen':native_card['native_pcie_gen'],'pcie_native_width':native_card['native_pcie_width'],'pcie_gen3_on_gen4_card':pcie_gen==3 and native_card['native_pcie_gen']==4}],'wall_clock':{'start_utc':start,'end_utc':end,'seconds':int(runtime)},'instances':[{'instance_id':instance_id,'label':label,'host_id':host_id,'machine_id':machine_id,'hourly_rate_usd':float(hourly),'actual_cost_usd':round(actual,6),'cost_source':source}],'cost_usd':round(actual,6)}
 pathlib.Path(out,'run.json').write_text(json.dumps(meta,indent=2)+'\n')
 print('run metadata saved; cost source='+source)
 PY

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "VRAM Tier Map results.csv columns",
-  "schema_version": "1.5",
+  "schema_version": "1.6",
   "format": "CSV",
   "columns": [
     {
@@ -107,6 +107,29 @@
       "type": "number|null",
       "required": true,
       "minimum": 0
+    },
+    {
+      "name": "provider",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "pod_type",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "hourly_rate_usd",
+      "type": "number|null",
+      "required": true,
+      "minimum": 0
+    },
+    {
+      "name": "cpu_idle_percent",
+      "type": "number|null",
+      "required": true,
+      "minimum": 0,
+      "maximum": 100
     },
     {
       "name": "pcie_gen_actual",

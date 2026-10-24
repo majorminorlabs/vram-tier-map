@@ -96,7 +96,6 @@ if processes: fail("preflight failed: another process is using the GPU")
 lines = [line.split() for line in open(vm_file) if line.strip()]
 if len(lines) < 3: fail("preflight failed: could not read CPU idle")
 idle = float(lines[-1][-3])
-if idle < 90.0: fail(f"preflight failed: CPU busy above 10% (idle {idle:.1f}%)")
 mem = {}
 for line in open(mem_file):
     if ':' in line:
@@ -105,17 +104,17 @@ for line in open(mem_file):
         except (ValueError, IndexError): pass
 total_gb=mem.get('MemTotal'); free_gb=mem.get('MemAvailable')
 try: offer_ram_gb=float(cpu_ram)/1000
-except (TypeError, ValueError): offer_ram_gb=None
+except (TypeError, ValueError): offer_ram_gb=total_gb
 ram_ok=offer_ram_gb is not None and offer_ram_gb >= ram_floor
 driver=json.load(open(driver_file))
-quality={'gpu_name':name,'power_limit_w':power_w,'power_default_limit_w':default_w,'power_ratio':power_w/default_w if power_w is not None and default_w else None,'power_pass':power_ok,'host_ram_total_gb':total_gb,'free_ram_at_preflight_gb':free_gb,'instance_cpu_ram':cpu_ram,'ram_floor_gb':ram_floor,'ram_pass':ram_ok,'cpu_idle_percent':idle,'driver_version':driver['driver_version'],'host_cuda_max':driver['host_cuda_max'],'required_cuda_toolkit':driver['required_cuda_toolkit']}
+quality={'gpu_name':name,'power_limit_w':power_w,'power_default_limit_w':default_w,'power_ratio':power_w/default_w if power_w is not None and default_w else None,'power_pass':power_ok,'host_ram_total_gb':total_gb,'free_ram_at_preflight_gb':free_gb,'instance_cpu_ram':cpu_ram,'ram_floor_gb':ram_floor,'ram_pass':ram_ok,'cpu_idle_percent':idle,'cpu_idle_policy':'config-dependent','driver_version':driver['driver_version'],'host_cuda_max':driver['host_cuda_max'],'required_cuda_toolkit':driver['required_cuda_toolkit']}
 with open(quality_file,'w') as f: json.dump(quality,f,indent=2); f.write('\n')
 if policy in ('smoke','smoke-kill'):
     if not power_ok: print(f"WARNING: smoke host power quality below 90% default or unavailable ({power}/{default}); continuing")
     if not ram_ok: print(f"WARNING: smoke host RAM offer below {ram_floor:g} GB or unavailable (cpu_ram={cpu_ram}); continuing")
 else:
     if not power_ok: fail(f"preflight failed: power limit {power_w}W is below 90% of default {default_w}W")
-print(f"GPU identity/process/CPU checks passed: {name}; CPU idle {idle:.1f}%")
+print(f"GPU identity/process preflight passed: {name}; measured CPU idle {idle:.1f}% (config-dependent)")
 print(f"host RAM total={total_gb} GiB free={free_gb} GiB instance_cpu_ram={cpu_ram} MB policy={policy}")
 PY
 

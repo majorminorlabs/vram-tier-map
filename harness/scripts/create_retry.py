@@ -15,6 +15,7 @@ skip_path = diagnostics / f'{run_id}.skip-offers'
 skip_path.touch(exist_ok=True)
 skipped = set(skip_path.read_text().split())
 failed = set(Path(failed_path).read_text().split()) if Path(failed_path).exists() else set()
+failed |= set(subprocess.check_output([sys.executable,str(Path(__file__).with_name('exclusions.py')),'active',str(private/'exclusions.jsonl')],text=True).split())
 errors = []
 ledger = private / f"session-spend-{__import__('time').strftime('%Y%m%d')}.jsonl"
 spent = 0.0

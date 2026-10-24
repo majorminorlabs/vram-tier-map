@@ -18,7 +18,7 @@ def filter_offers(raw, cap, requested_gpu, cards, skipped=(), failed=(), smoke=F
     for offer in offers:
         gpu = offer.get('gpu_name')
         card = supported.get(gpu)
-        if card is None or (requested_gpu != 'any' and gpu != requested_gpu):
+        if card is None or card.get('provider','vast') != 'vast' or (requested_gpu != 'any' and gpu != requested_gpu):
             continue
         disk_gb = int(card['disk_gb'])
         ram_floor_gb = int(card.get('ram_floor_gb', 32))

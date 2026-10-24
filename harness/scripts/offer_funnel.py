@@ -36,6 +36,7 @@ rows=[o for o in rows if offer_supports_cuda(o,runtime['cuda_max_good_required']
 cap=float(cap)
 rows=[o for o in rows if float(o.get('dph_total',o.get('dph',1e9)) or 1e9)<=cap]; stages.append((f'price<={cap:.2f}/h',len(rows)))
 failed=set(Path(failed_path).read_text().split()) if Path(failed_path).exists() else set()
+failed |= set(subprocess.check_output([sys.executable,str(Path(__file__).with_name('exclusions.py')),'active',str(Path(private)/'exclusions.jsonl')],text=True).split())
 skip_path=Path(private)/'create-responses'/f'{run_id}.skip-offers'
 skipped=set(skip_path.read_text().split()) if skip_path.exists() else set()
 eligible=[o for o in rows if str(o.get('machine_id','')) not in failed and str(o.get('id','')) not in skipped]
