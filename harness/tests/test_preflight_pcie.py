@@ -32,7 +32,7 @@ def run(policy='card', gpu='RTX 3090', width=16, gen=4, power=100, default=100, 
         executable(bindir/'nvidia-smi',NVIDIA)
         executable(bindir/'lscpu','#!/bin/sh\necho CPU\n')
         executable(bindir/'vmstat','#!/bin/sh\nprintf "procs memory swap io system cpu\\n r b swpd free buff cache si so bi bo in cs us sy id wa st\\n 0 0 0 0 0 0 0 0 0 0 0 0 0 0 99 0 0\\n"\n')
-        bench=f'''#!/usr/bin/env python3\nimport pathlib,time\np=pathlib.Path({str(marker)!r}); p.touch(); time.sleep(.3); print("llama_model_load: offloaded 32/32 layers to GPU"); print("llama_model_load: load time = {load_ms} ms"); p.unlink(missing_ok=True)\n'''
+        bench=f'''#!/usr/bin/env python3\nimport pathlib,sys,time\nif '-mmp' in sys.argv: print('error: invalid parameter for argument: -mmp'); raise SystemExit(1)\np=pathlib.Path({str(marker)!r}); p.touch(); time.sleep(.3); print("llama_model_load: offloaded 32/32 layers to GPU"); print("llama_model_load: load time = {load_ms} ms"); p.unlink(missing_ok=True)\n'''
         executable(bindir/'llama-bench',bench)
         model=root/'tiny.gguf'; model.write_bytes(b'mock transfer bytes')
         out=root/'out'; env=os.environ.copy()

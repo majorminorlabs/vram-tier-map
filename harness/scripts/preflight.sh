@@ -159,7 +159,9 @@ if [[ -s "$model" && "$policy" != smoke && "$policy" != smoke-kill ]]; then
       transfer_bytes="$transfer_bytes_per_run"
       transfer_start_ns=$(date +%s%N)
       started_utc=$(date -u +%FT%TZ)
-      LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}/workspace/llama.cpp/build/bin" "$bench" -m "$model" -ngl 99 -mmp 0 -p 1 -n 1 -r 1 -o json > "$bench_log" 2>&1 &
+      # The pinned llama-bench does not implement llama.cpp CLI's `-mmp` flag.
+      # Loading the GGUF with all layers on GPU is the H2D transfer measurement.
+      LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}/workspace/llama.cpp/build/bin" "$bench" -m "$model" -ngl 99 -p 1 -n 1 -r 1 -o json > "$bench_log" 2>&1 &
       bench_pid=$!
       sample_pcie transfer
       while kill -0 "$bench_pid" 2>/dev/null; do
