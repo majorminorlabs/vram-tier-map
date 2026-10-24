@@ -1,15 +1,22 @@
 #!/usr/bin/env python3
 """RunPod control plane adapter. Authentication is read only by runpodctl's saved config."""
-import json, os, subprocess, sys, time
+import json, os, re, subprocess, sys, time
 from pathlib import Path
 
 CLI=os.environ.get('VTM_RUNPODCTL','runpodctl')
 
+def redact(value):
+    return re.sub(r'(?<![A-Za-z0-9])[A-Za-z0-9_./+=-]{32,}(?![A-Za-z0-9])','[redacted]',str(value or ''))
+
 def call(args, timeout=180):
     p=subprocess.run([CLI,*args],capture_output=True,text=True,timeout=timeout)
     if p.returncode:
-        # Do not surface raw CLI errors; they can include request details.
-        raise RuntimeError(f"runpodctl {args[0]} failed (exit {p.returncode})")
+        # The private diagnostic is redacted; raw control-plane output is never printed.
+        path=os.environ.get('VTM_RUNPOD_DIAGNOSTICS')
+        if path:
+            Path(path).parent.mkdir(parents=True,exist_ok=True)
+            with open(path,'a') as stream: stream.write(json.dumps({'command':args[0],'exit_code':p.returncode,'stdout':redact(p.stdout),'stderr':redact(p.stderr)})+'\n')
+        raise RuntimeError(f"runpodctl {args[0]} failed (exit {p.returncode})" + (f"; see {path}" if path else ''))
     return p.stdout
 
 def parse(raw):
@@ -70,7 +77,7 @@ def create(label, gpu_name, cap, disk_gb, cloud='COMMUNITY'):
     price_field='communityPricePerHr' if cloud=='COMMUNITY' else 'securePricePerHr'
     hourly=float(gpu.get(price_field) or 0)
     if hourly<=0 or hourly>float(cap): raise RuntimeError(f'RunPod {cloud.lower()} hourly price is unavailable or exceeds ${cap}/h cap')
-    cmd=['pod','create','--output','json','--name',label,'--gpu-id',str(gpu['gpuId']),'--gpu-count','1','--cloud-type',cloud,'--image',os.environ['VTM_PINNED_IMAGE'],'--container-disk-in-gb',str(disk_gb),'--volume-in-gb',str(disk_gb),'--volume-mount-path','/workspace','--ports','22/tcp']
+    cmd=['pod','create','--output','json','--name',label,'--gpu-id',str(gpu['gpuId']),'--gpu-count','1','--cloud-type',cloud,'--image',os.environ['VTM_PINNED_IMAGE'],'--container-disk-in-gb','50','--volume-in-gb',str(disk_gb),'--volume-mount-path','/workspace/storage','--ports','22/tcp']
     if cloud=='COMMUNITY': cmd.append('--public-ip')
     raw=call(cmd,timeout=300)
     response=parse(raw)

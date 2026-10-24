@@ -7,7 +7,7 @@ import yaml
 ROOT=Path('/workspace/harness')
 LLAMA=Path('/workspace/llama.cpp')
 OUT=Path('/workspace/output')
-CACHE=Path('/workspace/model-cache')
+CACHE=Path(os.environ.get('VTM_MODEL_CACHE','/workspace/model-cache'))
 BASE='http://127.0.0.1:8080'
 COMMIT='84e66d03218711dfcaa993e5f64a546abe82df9a'
 

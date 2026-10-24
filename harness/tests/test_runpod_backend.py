@@ -39,6 +39,8 @@ else: print("{}")
   create_args=next(x for x in recorded if x[:2]==['pod','create'])
   assert '--image' in create_args and env['VTM_PINNED_IMAGE'] in create_args
   assert '--cloud-type' in create_args and create_args[create_args.index('--cloud-type')+1]=='COMMUNITY'
+  assert create_args[create_args.index('--volume-mount-path')+1]=='/workspace/storage'
+  assert create_args[create_args.index('--container-disk-in-gb')+1]=='50'
   assert any(x[:2]==['pod','delete'] for x in recorded), 'teardown did not call RunPod pod delete'
   # SIGKILL the main process. The independently running watchdog sees the dead owner,
   # deletes the labeled pod, polls until absent, then exits.

@@ -9,6 +9,7 @@ scripts="$repo/harness/scripts"; private="$repo/../_private/vram-tier-map"
 [[ -n "$run_id" ]] || run_id="${mode}-$(date -u +%Y%m%dT%H%M%SZ)"
 [[ "$run_id" =~ ^[A-Za-z0-9_-]+$ ]] || { echo 'invalid run_id' >&2; exit 2; }
 mkdir -p "$out" "$private/runpod/watchdogs" "$private/runpod/create-responses"
+export VTM_RUNPOD_DIAGNOSTICS="$private/runpod/create-responses/$run_id.cli.jsonl"
 card=$(python3 - "$gpu" <<'PY'
 import json,sys
 cards=json.load(open('harness/registry/cards.yaml'))['cards']
@@ -187,7 +188,7 @@ if [[ "$mode" == smoke || "$mode" == smoke-kill ]]; then
 else
   scp -r "${scp_opts[@]}" "$repo/harness" root@"$ssh_host":/workspace/harness
   while IFS= read -r -d '' path; do localfile="$repo/$path"; remotefile="/workspace/$path"; expected=$(shasum -a 256 "$localfile" | awk '{print $1}'); "${ssh[@]}" "test -f $remotefile && actual=\$(sha256sum $remotefile | awk '{print \$1}') && test \"\$actual\" = $expected" || { echo "upload verification failed: $remotefile" >&2; exit 1; }; printf 'verified remote_path=%s sha256=%s\n' "$remotefile" "$expected" >> "$out/upload-paths.log"; done < <(git -C "$repo" ls-files -z -- harness/)
-  "${ssh[@]}" "PATH=/workspace/bin:\$PATH LD_LIBRARY_PATH=/workspace/llama.cpp/build/bin python3 /workspace/harness/scripts/card_runner.py --card-id '$card_id' --run-id '$run_id' --host-id runpod --instance-cpu-ram '' --verified-status 'runpod' --provider runpod --pod-type '$pod_type' --hourly-rate '$hourly' --mode full"
+  "${ssh[@]}" "VTM_MODEL_CACHE=/workspace/storage/model-cache PATH=/workspace/bin:\$PATH LD_LIBRARY_PATH=/workspace/llama.cpp/build/bin python3 /workspace/harness/scripts/card_runner.py --card-id '$card_id' --run-id '$run_id' --host-id runpod --instance-cpu-ram '' --verified-status 'runpod' --provider runpod --pod-type '$pod_type' --hourly-rate '$hourly' --mode full"
 fi
 copy_dest="$out"; [[ "$mode" == card ]] || copy_dest="$out/results"; mkdir -p "$copy_dest"
 scp "${scp_opts[@]}" -r "root@$ssh_host:/workspace/output/." "$copy_dest/"
